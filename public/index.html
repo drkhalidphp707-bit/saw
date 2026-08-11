@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>لوحة المساعد الآلي</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand"><span class="logo">و</span><div><strong>المساعد الآلي</strong><small>إدارة واتساب</small></div></div>
+    <nav>
+      <button class="nav active" data-page="home">⌂ <span>الرئيسية</span></button>
+      <button class="nav" data-page="flow">☷ <span>مسار الردود</span></button>
+      <button class="nav" data-page="customers">♙ <span>الزبائن</span></button>
+      <button class="nav" data-page="test">◁ <span>تجربة البوت</span></button>
+    </nav>
+    <div class="side-note">بياناتك محفوظة في خادمك</div>
+  </aside>
+
+  <main>
+    <header><button id="menu">☰</button><div><h1 id="page-title">الرئيسية</h1><p>تحكم بالردود واستقبال بيانات الزبائن</p></div><span class="status-pill" id="top-status">جاري الفحص…</span></header>
+
+    <section class="page active" id="home">
+      <div class="stats">
+        <div class="stat"><span>حالة واتساب</span><strong id="connection-text">—</strong><small id="phone-text"></small></div>
+        <div class="stat"><span>عدد الزبائن</span><strong id="customer-count">0</strong><small>إجمالي المسجلين</small></div>
+        <div class="stat"><span>وضع البوت</span><strong id="bot-state">مفعّل</strong><small>يمكن تغييره من الإعدادات</small></div>
+      </div>
+      <div class="grid-2">
+        <article class="card qr-card"><div class="card-head"><div><h2>ربط واتساب</h2><p>امسح الرمز من الأجهزة المرتبطة في واتساب</p></div><i class="dot"></i></div><div id="qr-box" class="qr-box"><div class="qr-placeholder">QR</div><p>بانتظار رمز الربط…</p></div><button id="logout" class="danger ghost">فصل الرقم وإظهار QR جديد</button></article>
+        <article class="card"><div class="card-head"><div><h2>الإعدادات السريعة</h2><p>اسم البوت وتشغيل الرد التلقائي</p></div></div><label>اسم المساعد<input id="bot-name" /></label><label class="switch-row"><span><b>الرد التلقائي</b><small>الرد على الرسائل الجديدة</small></span><input id="enabled" type="checkbox" /></label><button id="save-quick" class="primary">حفظ الإعدادات</button></article>
+      </div>
+    </section>
+
+    <section class="page" id="flow">
+      <div class="section-title"><div><h2>مسار المحادثة</h2><p>رتّب الأسئلة التي يجيب عنها الزبون خطوة بخطوة</p></div><button id="add-step" class="primary">＋ إضافة سؤال</button></div>
+      <article class="card message-settings"><label>رسالة الترحيب<textarea id="welcome" rows="3"></textarea></label><label>رسالة الاكتمال<textarea id="complete" rows="3"></textarea></label><label>رسالة الخطأ<textarea id="fallback" rows="2"></textarea></label></article>
+      <div id="steps"></div>
+      <div class="save-bar"><span id="save-hint">يُعاد بدء المحادثات المفتوحة بعد الحفظ</span><button id="save-flow" class="primary">حفظ مسار الردود</button></div>
+    </section>
+
+    <section class="page" id="customers">
+      <div class="section-title"><div><h2>بيانات الزبائن</h2><p>البيانات التي جمعها البوت بعد إكمال المحادثة</p></div><button id="export" class="ghost">تنزيل CSV</button></div>
+      <article class="card table-wrap"><table><thead id="customer-head"></thead><tbody id="customer-body"></tbody></table><div id="empty-customers" class="empty">لا توجد بيانات بعد</div></article>
+    </section>
+
+    <section class="page" id="test">
+      <div class="section-title"><div><h2>تجربة البوت</h2><p>اختبر المسار من اللوحة قبل ربط واتساب</p></div><button id="restart-test" class="ghost">بدء محادثة جديدة</button></div>
+      <div class="phone"><div class="phone-head"><span class="avatar">و</span><div><b id="chat-name">المساعد الآلي</b><small>متصل الآن</small></div></div><div class="chat" id="chat"></div><form id="chat-form"><input id="chat-input" autocomplete="off" placeholder="اكتب رسالة…" /><button>إرسال</button></form></div>
+    </section>
+  </main>
+  <div id="toast"></div>
+  <script src="/app.js" type="module"></script>
+</body>
+</html>
