@@ -3,8 +3,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createSession, destroySession, hashPassword, readSession, verifyPassword } from './auth.js';
 import {
-  accountAccess, getAccount, getAccounts, getConfig, getCustomers, initStore, initTenant,
-  resetAllSessions, saveAccounts, saveConfig, updateAccount
+  accountAccess, accountIdentityExists, createAccount, findAccountByIdentity, getAccount, getAccounts, getConfig, getCustomers, initStore, initTenant,
+  resetAllSessions, saveConfig, updateAccount
 } from './store.js';
 import { processMessage } from './conversation.js';
 import { getWhatsAppStatus, logoutWhatsApp, startWhatsApp, stopWhatsApp } from './whatsapp.js';
@@ -62,22 +62,22 @@ app.post('/api/auth/signup', async (req, res) => {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) return res.status(400).json({ error: 'البريد الإلكتروني غير صحيح' });
   if (String(password || '').length < 8) return res.status(400).json({ error: 'كلمة المرور يجب أن تكون 8 أحرف على الأقل' });
   if (password !== confirmPassword) return res.status(400).json({ error: 'تأكيد كلمة المرور غير مطابق' });
-  const accounts = await getAccounts();
-  if (accounts.some((item) => item.email === cleanEmail || item.username === cleanUsername)) return res.status(409).json({ error: 'البريد أو اسم المستخدم مستخدم مسبقاً' });
+  if (await accountIdentityExists(cleanEmail, cleanUsername)) return res.status(409).json({ error: 'البريد أو اسم المستخدم مستخدم مسبقاً' });
   const now = new Date();
   const account = {
     id: crypto.randomUUID(), fullName: String(fullName).trim(), username: cleanUsername, email: cleanEmail,
     whatsapp: String(whatsapp || '').trim(), passwordHash: await hashPassword(password), status: 'trial',
     trialStartedAt: now.toISOString(), trialEndsAt: new Date(now.getTime() + 3 * 86400000).toISOString(), createdAt: now.toISOString()
   };
-  accounts.push(account); await saveAccounts(accounts); await initTenant(account.id);
+  try { await createAccount(account); } catch (error) { if (error.code === '23505') return res.status(409).json({ error: 'البريد أو اسم المستخدم مستخدم مسبقاً' }); throw error; }
+  await initTenant(account.id);
   await createSession(res, { accountId: account.id });
   res.status(201).json({ account: publicAccount(account) });
 });
 app.post('/api/auth/login', async (req, res) => {
   if (limited(req, 'login', 15)) return res.status(429).json({ error: 'محاولات كثيرة، حاول بعد قليل' });
   const identity = String(req.body?.identity || '').trim().toLowerCase();
-  const account = (await getAccounts()).find((item) => item.email === identity || item.username === identity);
+  const account = await findAccountByIdentity(identity);
   if (!account || !(await verifyPassword(String(req.body?.password || ''), account.passwordHash))) return res.status(401).json({ error: 'بيانات الدخول غير صحيحة' });
   await createSession(res, { accountId: account.id });
   res.json({ account: publicAccount(account) });

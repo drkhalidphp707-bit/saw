@@ -1,6 +1,6 @@
 import { randomBytes, scrypt as scryptCallback, timingSafeEqual, createHash } from 'node:crypto';
 import { promisify } from 'node:util';
-import { getAppSessions, saveAppSessions } from './store.js';
+import { deleteAppSession, getAppSession, putAppSession } from './store.js';
 
 const scrypt = promisify(scryptCallback);
 const COOKIE = 'saw_session';
@@ -26,20 +26,17 @@ export function parseCookies(req) {
 
 export async function createSession(res, subject) {
   const token = randomBytes(32).toString('base64url');
-  const sessions = await getAppSessions();
-  sessions[digest(token)] = { ...subject, expiresAt: new Date(Date.now() + 30 * 86400000).toISOString() };
-  await saveAppSessions(sessions);
+  await putAppSession(digest(token), { ...subject, expiresAt: new Date(Date.now() + 30 * 86400000).toISOString() });
   res.setHeader('Set-Cookie', `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
 }
 
 export async function readSession(req) {
   const token = parseCookies(req)[COOKIE];
   if (!token) return null;
-  const sessions = await getAppSessions();
   const key = digest(token);
-  const session = sessions[key];
+  const session = await getAppSession(key);
   if (!session || new Date(session.expiresAt).getTime() <= Date.now()) {
-    if (session) { delete sessions[key]; await saveAppSessions(sessions); }
+    if (session) await deleteAppSession(key);
     return null;
   }
   return session;
@@ -47,6 +44,6 @@ export async function readSession(req) {
 
 export async function destroySession(req, res) {
   const token = parseCookies(req)[COOKIE];
-  if (token) { const sessions = await getAppSessions(); delete sessions[digest(token)]; await saveAppSessions(sessions); }
+  if (token) await deleteAppSession(digest(token));
   res.setHeader('Set-Cookie', `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
 }
