@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import QRCode from 'qrcode';
 import pino from 'pino';
-import makeWASocket, { DisconnectReason, generateWAMessageFromContent, proto, useMultiFileAuthState } from '@whiskeysockets/baileys';
+import makeWASocket, { DisconnectReason, useMultiFileAuthState } from '@whiskeysockets/baileys';
 import { accountAccess, authDirFor, getAccount } from './store.js';
 import { processMessage } from './conversation.js';
 
@@ -36,65 +36,10 @@ function getText(content) {
 
 const fallbackButtonText = (reply) => [reply.text, ...(reply.buttons || []).map((button, index) => `${index + 1}- ${button.label}`)].filter(Boolean).join('\n');
 
-function interactiveRelayNodes() {
-  return [
-    { tag: 'bot', attrs: { biz_bot: '1' } },
-    {
-      tag: 'biz',
-      attrs: {
-        actual_actors: '2',
-        host_storage: '2',
-        privacy_mode_ts: String(Math.floor(Date.now() / 1000) - 77980457)
-      },
-      content: [
-        {
-          tag: 'interactive',
-          attrs: { type: 'native_flow', v: '1' },
-          content: [{ tag: 'native_flow', attrs: { v: '9', name: 'mixed' } }]
-        },
-        { tag: 'quality_control', attrs: { source_type: 'third_party' } }
-      ]
-    }
-  ];
-}
-
 async function sendBotReply(socket, jid, reply) {
   if (typeof reply === 'string') return socket.sendMessage(jid, { text: reply });
   if (reply?.type !== 'buttons' || !reply.buttons?.length) return;
-  const buttons = reply.buttons.filter((button) => button.label).slice(0, 10);
-  try {
-    const nativeButtons = buttons.length <= 3
-      ? buttons.map((button) => ({ name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: String(button.label).slice(0, 20), id: button.id || button.label }) }))
-      : [{ name: 'single_select', buttonParamsJson: JSON.stringify({ title: 'عرض الخيارات', sections: [{ title: 'اختر أحد الخيارات', rows: buttons.map((button) => ({ id: button.id || button.label, title: String(button.label).slice(0, 24), description: '' })) }] }) }];
-    // Native-flow messages must be relayed directly as an interactiveMessage.
-    // Wrapping this payload in viewOnce is silently discarded by newer clients.
-    const interactiveMessage = proto.Message.InteractiveMessage.create({
-      header: proto.Message.InteractiveMessage.Header.create({
-        title: '', subtitle: '', hasMediaAttachment: false
-      }),
-      body: proto.Message.InteractiveMessage.Body.create({
-        text: reply.text || 'اختر أحد الخيارات'
-      }),
-      footer: proto.Message.InteractiveMessage.Footer.create({
-        text: 'اضغط على أحد الخيارات'
-      }),
-      nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
-        buttons: nativeButtons.map((button) =>
-          proto.Message.InteractiveMessage.NativeFlowMessage.NativeFlowButton.create(button)
-        ),
-        messageParamsJson: '{}',
-        messageVersion: 1
-      })
-    });
-    const outgoing = generateWAMessageFromContent(jid, { interactiveMessage }, { userJid: socket.user?.id });
-    return socket.relayMessage(jid, outgoing.message, {
-      messageId: outgoing.key.id,
-      additionalNodes: interactiveRelayNodes()
-    });
-  } catch (error) {
-    console.error('Interactive buttons failed, using text fallback', error);
-    return socket.sendMessage(jid, { text: fallbackButtonText(reply) });
-  }
+  return socket.sendMessage(jid, { text: fallbackButtonText(reply) });
 }
 
 export async function startWhatsApp(accountId) {
