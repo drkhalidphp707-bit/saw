@@ -99,10 +99,13 @@ $$('.nav').forEach(button => button.onclick = () => {
   $$('.nav').forEach(x => x.classList.remove('active')); button.classList.add('active');
   $$('.page').forEach(x => x.classList.remove('active')); $(`#${button.dataset.page}`).classList.add('active');
   $('#page-title').textContent = $('span', button).textContent; $('.sidebar').classList.remove('open');
+  document.body.classList.toggle('bot-focus', button.dataset.page === 'bot');
+  document.body.classList.remove('bot-nav-open');
   if (button.dataset.page === 'customers') api('/api/customers').then(x => { customers=x; renderCustomers(); });
   if (button.dataset.page === 'bot') renderBotFlow();
 });
-$('#menu').onclick = () => $('.sidebar').classList.toggle('open');
+$('#menu').onclick = () => document.body.classList.contains('bot-focus') ? document.body.classList.toggle('bot-nav-open') : $('.sidebar').classList.toggle('open');
+$('#bot-menu-toggle').onclick = () => document.body.classList.toggle('bot-nav-open');
 
 $('#steps').onclick = (event) => {
   const card = event.target.closest('.step-card'); if (!card) return;
