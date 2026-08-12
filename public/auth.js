@@ -1,0 +1,5 @@
+const errorBox=document.querySelector('#auth-error');
+async function request(url,body){const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'حدث خطأ');return data;}
+document.querySelectorAll('[data-tab]').forEach(button=>button.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===button));document.querySelector('#signup-form').hidden=button.dataset.tab!=='signup';document.querySelector('#login-form').hidden=button.dataset.tab!=='login';errorBox.textContent='';});
+for(const form of document.querySelectorAll('form'))form.onsubmit=async event=>{event.preventDefault();errorBox.textContent='';const submit=form.querySelector('.submit');submit.disabled=true;try{const body=Object.fromEntries(new FormData(form));await request(form.id==='signup-form'?'/api/auth/signup':'/api/auth/login',body);location.href='/';}catch(error){errorBox.textContent=error.message;}finally{submit.disabled=false;}};
+fetch('/api/auth/me').then(response=>{if(response.ok)location.href='/';});

@@ -45,7 +45,7 @@ function graphPrompt(node, answers) {
   return [message, choices].filter(Boolean).join('\n');
 }
 
-async function advanceGraph(config, sessions, sender, session, firstNodeId) {
+async function advanceGraph(accountId, config, sessions, sender, session, firstNodeId) {
   const nodes = new Map(config.botFlow.nodes.map((node) => [node.id, node]));
   const replies = [];
   let nodeId = firstNodeId;
@@ -64,7 +64,7 @@ async function advanceGraph(config, sessions, sender, session, firstNodeId) {
     if (['input', 'phone', 'buttons'].includes(node.type)) {
       session.nodeId = node.id;
       sessions[sender] = session;
-      await saveSessions(sessions);
+      await saveSessions(accountId, sessions);
       const prompt = graphPrompt(node, session.answers);
       if (prompt) replies.push(prompt);
       return replies;
@@ -72,62 +72,62 @@ async function advanceGraph(config, sessions, sender, session, firstNodeId) {
     if (node.type === 'end') {
       const message = interpolate(node.message || config.completionText, session.answers);
       if (message) replies.push(message);
-      const customers = await getCustomers();
+      const customers = await getCustomers(accountId);
       customers.unshift({
         id: crypto.randomUUID(), whatsapp: sender, name: session.displayName || '',
         ...session.answers, createdAt: new Date().toISOString()
       });
-      await saveCustomers(customers);
+      await saveCustomers(accountId, customers);
       delete sessions[sender];
-      await saveSessions(sessions);
+      await saveSessions(accountId, sessions);
       return replies;
     }
     nodeId = node.next;
   }
   delete sessions[sender];
-  await saveSessions(sessions);
+  await saveSessions(accountId, sessions);
   return replies.length ? replies : [config.fallbackText];
 }
 
-async function processGraphMessage(config, sender, text, displayName) {
-  const sessions = await getSessions();
+async function processGraphMessage(accountId, config, sender, text, displayName) {
+  const sessions = await getSessions(accountId);
   let session = sessions[sender];
   const restart = ['ابدأ', 'ابدا', 'start', 'القائمة', 'القائمه', '0'].includes(normalize(text));
   const start = config.botFlow.nodes.find((node) => node.type === 'start');
   if (!session || session.engine !== 'graph' || restart) {
     session = { engine: 'graph', nodeId: null, answers: {}, displayName, startedAt: new Date().toISOString() };
     sessions[sender] = session;
-    await saveSessions(sessions);
-    return advanceGraph(config, sessions, sender, session, start?.id);
+    await saveSessions(accountId, sessions);
+    return advanceGraph(accountId, config, sessions, sender, session, start?.id);
   }
   const node = config.botFlow.nodes.find((item) => item.id === session.nodeId);
-  if (!node) return advanceGraph(config, sessions, sender, session, start?.id);
+  if (!node) return advanceGraph(accountId, config, sessions, sender, session, start?.id);
   const result = graphValidation(node, text);
   if (!result.ok) return [config.fallbackText, graphPrompt(node, session.answers)].filter(Boolean);
   session.answers[node.field || node.label || node.id] = result.value;
-  return advanceGraph(config, sessions, sender, session, result.next);
+  return advanceGraph(accountId, config, sessions, sender, session, result.next);
 }
 
-export async function processMessage(sender, text, displayName = '') {
-  const config = await getConfig();
+export async function processMessage(accountId, sender, text, displayName = '') {
+  const config = await getConfig(accountId);
   if (!config.enabled) return [];
-  if (config.botFlow?.nodes?.length) return processGraphMessage(config, sender, text, displayName);
+  if (config.botFlow?.nodes?.length) return processGraphMessage(accountId, config, sender, text, displayName);
   if (!config.steps?.length) return [];
 
-  const sessions = await getSessions();
+  const sessions = await getSessions(accountId);
   let session = sessions[sender];
   const restart = ['ابدأ', 'ابدا', 'start', 'القائمة', 'القائمه', '0'].includes(normalize(text));
 
   if (!session || restart) {
     sessions[sender] = { step: 0, answers: {}, displayName, startedAt: new Date().toISOString() };
-    await saveSessions(sessions);
+    await saveSessions(accountId, sessions);
     return [config.welcomeText, config.steps[0].question].filter(Boolean);
   }
 
   const step = config.steps[session.step];
   if (!step) {
     delete sessions[sender];
-    await saveSessions(sessions);
+    await saveSessions(accountId, sessions);
     return [config.welcomeText, config.steps[0].question].filter(Boolean);
   }
 
@@ -139,11 +139,11 @@ export async function processMessage(sender, text, displayName = '') {
 
   if (session.step < config.steps.length) {
     sessions[sender] = session;
-    await saveSessions(sessions);
+    await saveSessions(accountId, sessions);
     return [config.steps[session.step].question];
   }
 
-  const customers = await getCustomers();
+  const customers = await getCustomers(accountId);
   customers.unshift({
     id: crypto.randomUUID(),
     whatsapp: sender,
@@ -151,8 +151,8 @@ export async function processMessage(sender, text, displayName = '') {
     ...session.answers,
     createdAt: new Date().toISOString()
   });
-  await saveCustomers(customers);
+  await saveCustomers(accountId, customers);
   delete sessions[sender];
-  await saveSessions(sessions);
+  await saveSessions(accountId, sessions);
   return [config.completionText];
 }

@@ -7,22 +7,21 @@ let botFlow = null;
 let selectedNodeId = null;
 let flowDirty = false;
 let previewState = null;
-const passwordKey = 'bot-admin-password';
-let password = localStorage.getItem(passwordKey) || '';
+let flowZoom = 1;
+let account = null;
+let adminWhatsapp = '';
 
 async function api(url, options = {}) {
-  const response = await fetch(url, { ...options, headers: { 'Content-Type': 'application/json', 'x-admin-password': password, ...(options.headers || {}) } });
+  const response = await fetch(url, { ...options, headers: { 'Content-Type': 'application/json', ...(options.headers || {}) } });
   if (response.status === 401) {
-    const entered = prompt('أدخل كلمة مرور الإدارة:');
-    if (entered === null) throw new Error('يجب إدخال كلمة المرور');
-    password = entered;
-    localStorage.setItem(passwordKey, password);
-    return api(url, options);
+    location.href = '/auth.html';
+    throw new Error('يرجى تسجيل الدخول');
   }
   const raw = await response.text();
   let data;
   try { data = raw ? JSON.parse(raw) : {}; }
   catch { throw new Error(response.ok ? 'استجابة الخادم غير صالحة، أعد المحاولة' : raw || 'الخادم غير متاح مؤقتاً'); }
+  if (response.status === 403 && data.code) { if (account) { account.access = { allowed:false, state:data.code, daysLeft:0 }; showLockedAccount(); } }
   if (!response.ok) throw new Error(data.error || 'حدث خطأ');
   return data;
 }
@@ -37,11 +36,36 @@ function escapeHtml(value) {
 }
 
 async function load() {
+  const session = await api('/api/auth/me');
+  account = session.account;
+  adminWhatsapp = session.adminWhatsapp || '';
+  renderAccount();
+  if (!account.access.allowed) { showLockedAccount(); return; }
   let flowResponse;
   [config, customers, flowResponse] = await Promise.all([api('/api/config'), api('/api/customers'), api('/api/bot-flow')]);
   botFlow = flowResponse.draft || createDefaultBotFlow();
   fillConfig(); renderSteps(); renderCustomers(); renderBotFlow(); await refreshStatus();
 }
+
+function renderAccount() {
+  $('#account-name').textContent = account.fullName;
+  const plan = account.access.state === 'active' ? 'حساب مفعّل' : `متبقي ${account.access.daysLeft} يوم من التجربة`;
+  $('#account-plan').textContent = plan;
+  $('#trial-pill').textContent = plan;
+  const number = String(adminWhatsapp).replace(/\D/g,'');
+  $('#contact-admin').href = number ? `https://wa.me/${number}?text=${encodeURIComponent(`مرحباً، أريد تفعيل حسابي: ${account.email}`)}` : `mailto:?subject=${encodeURIComponent('طلب تفعيل الحساب')}&body=${encodeURIComponent(`أريد تفعيل حسابي: ${account.email}`)}`;
+}
+
+function showLockedAccount() {
+  document.body.classList.add('account-expired');
+  $$('.page').forEach(page => page.classList.remove('active'));
+  $('main>header').hidden = true;
+  $('#account-locked').hidden = false;
+}
+
+async function signOut() { await fetch('/api/auth/logout', { method:'POST' }); location.href='/auth.html'; }
+$('#account-logout').onclick = signOut;
+$('#locked-logout').onclick = signOut;
 
 function fillConfig() {
   $('#bot-name').value = config.botName || '';
@@ -183,7 +207,10 @@ function renderBotFlow() {
     return `<div class="visual-node ${node.type} ${node.id===selectedNodeId?'selected':''}" data-node-id="${node.id}" style="left:${node.x||0}px;top:${node.y||0}px"><div class="visual-node-head"><b>${nodeMeta[node.type].icon}</b>${nodeMeta[node.type].label}</div><div class="visual-node-body">${escapeHtml(nodeSummary(node))}</div>${options}${node.type!=='start'?`<i class="node-port link-port in" data-target-node="${node.id}" title="أفلت الخط هنا"></i>`:''}${ports}</div>`;
   }).join('');
   drawFlowLines(); renderInspector(); bindNodeDragging(); bindPortLinking();
+  applyFlowZoom();
 }
+function applyFlowZoom(){const canvas=$('#flow-canvas');if(!canvas)return;canvas.style.transform=`scale(${flowZoom})`;canvas.style.transformOrigin='0 0';$('#zoom-level').textContent=`${Math.round(flowZoom*100)}%`;}
+function setFlowZoom(value){flowZoom=Math.min(1.5,Math.max(.5,value));applyFlowZoom();}
 function nodeAnchor(node, outgoing=true, optionIndex=null) {
   const el=$(`[data-node-id="${node.id}"]`); if(!el)return {x:0,y:0};
   const x=(node.x||0)+(outgoing?el.offsetWidth:0);
@@ -204,12 +231,12 @@ function bindNodeDragging() {
     el.onpointerdown=(event)=>{
       if(event.button!==0 || event.target.closest('.link-port'))return; const node=getBotNode(el.dataset.nodeId); selectedNodeId=node.id; renderInspector(); $$('.visual-node').forEach(x=>x.classList.toggle('selected',x===el));
       const startX=event.clientX,startY=event.clientY,originX=node.x||0,originY=node.y||0; let moved=false; el.setPointerCapture(event.pointerId);
-      el.onpointermove=(move)=>{if(Math.abs(move.clientX-startX)+Math.abs(move.clientY-startY)>3)moved=true;node.x=Math.max(10,originX+move.clientX-startX);node.y=Math.max(10,originY+move.clientY-startY);el.style.left=`${node.x}px`;el.style.top=`${node.y}px`;drawFlowLines();};
+      el.onpointermove=(move)=>{if(Math.abs(move.clientX-startX)+Math.abs(move.clientY-startY)>3)moved=true;node.x=Math.max(10,originX+(move.clientX-startX)/flowZoom);node.y=Math.max(10,originY+(move.clientY-startY)/flowZoom);el.style.left=`${node.x}px`;el.style.top=`${node.y}px`;drawFlowLines();};
       el.onpointerup=()=>{el.onpointermove=null;if(moved)markFlowDirty();};
     };
   });
 }
-function pointerOnCanvas(event){const rect=$('#flow-canvas').getBoundingClientRect();return{x:event.clientX-rect.left,y:event.clientY-rect.top};}
+function pointerOnCanvas(event){const rect=$('#flow-canvas').getBoundingClientRect();return{x:(event.clientX-rect.left)/flowZoom,y:(event.clientY-rect.top)/flowZoom};}
 function bindPortLinking(){
   $$('.link-port.out').forEach(port=>{
     port.onpointerdown=event=>{
@@ -258,6 +285,10 @@ function addBotNode(type){
 $$('[data-add-node]').forEach(button=>button.onclick=()=>addBotNode(button.dataset.addNode));
 $('#block-search').oninput=event=>{const query=event.target.value.trim().toLowerCase();$$('[data-add-node]').forEach(button=>{button.hidden=query&&!button.textContent.toLowerCase().includes(query);});};
 $('#fit-flow').onclick=()=>{let x=70,y=100;const visited=new Set();let node=botFlow.nodes.find(n=>n.type==='start');while(node&&!visited.has(node.id)){visited.add(node.id);node.x=x;node.y=y;x+=280;node=getBotNode(node.next||(node.options?.[0]?.next));}botFlow.nodes.filter(n=>!visited.has(n.id)).forEach((n,i)=>{n.x=70+(i%4)*280;n.y=340+Math.floor(i/4)*190;});renderBotFlow();markFlowDirty();};
+$('#zoom-out').onclick=()=>setFlowZoom(flowZoom-.1);
+$('#zoom-in').onclick=()=>setFlowZoom(flowZoom+.1);
+$('#center-flow').onclick=()=>{const wrap=$('.flow-canvas-wrap');const nodes=botFlow.nodes;if(!nodes.length)return;const minX=Math.min(...nodes.map(n=>n.x||0));const minY=Math.min(...nodes.map(n=>n.y||0));const maxX=Math.max(...nodes.map(n=>(n.x||0)+($(`[data-node-id="${n.id}"]`)?.offsetWidth||220)));const maxY=Math.max(...nodes.map(n=>(n.y||0)+($(`[data-node-id="${n.id}"]`)?.offsetHeight||120)));wrap.scrollTo({left:Math.max(0,((minX+maxX)/2)*flowZoom-wrap.clientWidth/2),top:Math.max(0,((minY+maxY)/2)*flowZoom-wrap.clientHeight/2),behavior:'smooth'});};
+$('.flow-canvas-wrap').onpointerdown=event=>{if(event.button!==0||event.target.closest('.visual-node,.canvas-controls'))return;const wrap=event.currentTarget;const sx=event.clientX,sy=event.clientY,sl=wrap.scrollLeft,st=wrap.scrollTop;wrap.classList.add('panning');wrap.setPointerCapture(event.pointerId);wrap.onpointermove=move=>{wrap.scrollLeft=sl-(move.clientX-sx);wrap.scrollTop=st-(move.clientY-sy);};wrap.onpointerup=()=>{wrap.onpointermove=null;wrap.classList.remove('panning');};};
 
 async function saveBotFlow(publish=false){
   const url=publish?'/api/bot-flow/publish':'/api/bot-flow'; const method=publish?'POST':'PUT';
@@ -315,11 +346,11 @@ $('#restart-bot-preview').onclick=startBotPreview;
 $('#bot-preview-form').onsubmit=e=>{e.preventDefault();const input=$('#bot-preview-input');const text=input.value.trim();input.value='';previewSubmit(text);};
 
 async function boot(attempt=0) {
-  try { await load(); $('#restart-test').click(); }
+  try { await load(); if (account?.access?.allowed) $('#restart-test').click(); }
   catch (error) {
     toast(error.message);
     if (attempt < 3) setTimeout(() => boot(attempt + 1), 1500 * (attempt + 1));
   }
 }
 boot();
-setInterval(refreshStatus, 4000);
+setInterval(() => { if (account?.access?.allowed) refreshStatus(); }, 4000);

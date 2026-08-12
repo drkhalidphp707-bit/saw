@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>لوحة المساعد الآلي</title>
-  <link rel="stylesheet" href="/style.css?v=20260812-2" />
+  <link rel="stylesheet" href="/style.css?v=20260812-3" />
 </head>
 <body>
   <aside class="sidebar">
@@ -16,11 +16,14 @@
       <button class="nav" data-page="bot">⌘ <span>Bot</span></button>
       <button class="nav" data-page="test">◁ <span>تجربة البوت</span></button>
     </nav>
-    <div class="side-note">بياناتك محفوظة في خادمك</div>
+    <div class="account-card"><b id="account-name">حسابي</b><small id="account-plan">تجربة مجانية</small><button id="account-logout">تسجيل الخروج</button></div>
+    <div class="side-note">بيانات كل حساب محفوظة بشكل مستقل</div>
   </aside>
 
   <main>
-    <header><button id="menu">☰</button><div><h1 id="page-title">الرئيسية</h1><p>تحكم بالردود واستقبال بيانات الزبائن</p></div><span class="status-pill" id="top-status">جاري الفحص…</span></header>
+    <header><button id="menu">☰</button><div><h1 id="page-title">الرئيسية</h1><p>تحكم بالردود واستقبال بيانات الزبائن</p></div><span class="trial-pill" id="trial-pill">تجربة مجانية</span><span class="status-pill" id="top-status">جاري الفحص…</span></header>
+
+    <section id="account-locked" class="account-locked" hidden><div class="lock-card"><span>⌛</span><h1>انتهت تجربتك المجانية</h1><p>انتهت مدة التجربة البالغة 3 أيام. تواصل مع الإدارة لتفعيل حسابك ومتابعة استخدام البوت.</p><a id="contact-admin" href="#" target="_blank">تواصل مع الإدارة عبر واتساب</a><button id="locked-logout">تسجيل الخروج</button></div></section>
 
     <section class="page active" id="home">
       <div class="stats">
@@ -70,7 +73,7 @@
             <svg id="flow-lines" aria-hidden="true"></svg>
             <div id="flow-nodes"></div>
           </div>
-          <div class="canvas-controls"><button id="fit-flow" title="ترتيب المخطط">⌗ ترتيب</button><span>اسحب العقد لتحريكها</span></div>
+          <div class="canvas-controls"><button id="zoom-out" title="تصغير">−</button><strong id="zoom-level">100%</strong><button id="zoom-in" title="تكبير">＋</button><button id="center-flow" title="توسيط المخطط">⊙ توسيط</button><button id="fit-flow" title="ترتيب المخطط">⌗ ترتيب</button><span>اسحب الخلفية للتنقل</span></div>
         </div>
         <aside id="node-inspector" class="node-inspector"><div class="inspector-empty"><span>⌘</span><h3>خصائص العقدة</h3><p>اختر عقدة من المخطط لتعديلها</p></div></aside>
       </div>
@@ -85,6 +88,6 @@
     <div class="preview-dialog"><button id="close-bot-preview" class="preview-close">×</button><div class="phone"><div class="phone-head"><span class="avatar">و</span><div><b>معاينة البوت</b><small>المسودة الحالية</small></div></div><div class="chat" id="bot-preview-chat"></div><form id="bot-preview-form"><input id="bot-preview-input" autocomplete="off" placeholder="اكتب رسالة…"><button>إرسال</button></form></div><button id="restart-bot-preview" class="ghost">إعادة التجربة</button></div>
   </div>
   <div id="toast"></div>
-  <script src="/app.js?v=20260812-2" type="module"></script>
+  <script src="/app.js?v=20260812-3" type="module"></script>
 </body>
 </html>
