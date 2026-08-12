@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import QRCode from 'qrcode';
 import pino from 'pino';
-import makeWASocket, { DisconnectReason, useMultiFileAuthState } from '@whiskeysockets/baileys';
+import makeWASocket, { DisconnectReason, generateWAMessageFromContent, proto, useMultiFileAuthState } from '@whiskeysockets/baileys';
 import { accountAccess, authDirFor, getAccount } from './store.js';
 import { processMessage } from './conversation.js';
 
@@ -26,7 +26,35 @@ function unwrapMessage(content) {
 }
 function getText(content) {
   const message = unwrapMessage(content);
-  return (message.conversation || message.extendedTextMessage?.text || message.imageMessage?.caption || message.videoMessage?.caption || message.documentMessage?.caption || message.buttonsResponseMessage?.selectedDisplayText || message.listResponseMessage?.title || message.templateButtonReplyMessage?.selectedDisplayText || '').trim();
+  let nativeReply = '';
+  try {
+    const params = JSON.parse(message.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson || '{}');
+    nativeReply = params.id || params.selected_id || params.title || '';
+  } catch {}
+  return (message.conversation || message.extendedTextMessage?.text || message.imageMessage?.caption || message.videoMessage?.caption || message.documentMessage?.caption || message.buttonsResponseMessage?.selectedButtonId || message.buttonsResponseMessage?.selectedDisplayText || message.listResponseMessage?.singleSelectReply?.selectedRowId || message.listResponseMessage?.title || message.templateButtonReplyMessage?.selectedId || message.templateButtonReplyMessage?.selectedDisplayText || nativeReply || '').trim();
+}
+
+const fallbackButtonText = (reply) => [reply.text, ...(reply.buttons || []).map((button, index) => `${index + 1}- ${button.label}`)].filter(Boolean).join('\n');
+
+async function sendBotReply(socket, jid, reply) {
+  if (typeof reply === 'string') return socket.sendMessage(jid, { text: reply });
+  if (reply?.type !== 'buttons' || !reply.buttons?.length) return;
+  const buttons = reply.buttons.filter((button) => button.label).slice(0, 10);
+  try {
+    const nativeButtons = buttons.length <= 3
+      ? buttons.map((button) => ({ name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: String(button.label).slice(0, 20), id: button.id || button.label }) }))
+      : [{ name: 'single_select', buttonParamsJson: JSON.stringify({ title: 'عرض الخيارات', sections: [{ title: 'اختر أحد الخيارات', rows: buttons.map((button) => ({ id: button.id || button.label, title: String(button.label).slice(0, 24), description: '' })) }] }) }];
+    const outgoing = generateWAMessageFromContent(jid, {
+      viewOnceMessage: { message: { interactiveMessage: proto.Message.InteractiveMessage.create({
+        body: { text: reply.text || 'اختر أحد الخيارات' }, footer: { text: 'اضغط على أحد الخيارات' },
+        nativeFlowMessage: { buttons: nativeButtons, messageVersion: 3 }
+      }) } }
+    }, { userJid: socket.user?.id });
+    return socket.relayMessage(jid, outgoing.message, { messageId: outgoing.key.id });
+  } catch (error) {
+    console.error('Interactive buttons failed, using text fallback', error);
+    return socket.sendMessage(jid, { text: fallbackButtonText(reply) });
+  }
 }
 
 export async function startWhatsApp(accountId) {
@@ -63,7 +91,7 @@ export async function startWhatsApp(accountId) {
         update(accountId, { lastMessageAt: new Date().toISOString(), error: null });
         try {
           const replies = await processMessage(accountId, jid, text, message.pushName || '');
-          for (const reply of replies) if (reply) await socket.sendMessage(jid, { text: reply });
+          for (const reply of replies) if (reply) await sendBotReply(socket, jid, reply);
           if (replies.some(Boolean)) update(accountId, { lastReplyAt: new Date().toISOString() });
         } catch (error) { console.error('Failed to process WhatsApp message', error); update(accountId, { error: `تعذر الرد: ${error.message}` }); }
       }

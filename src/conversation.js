@@ -41,8 +41,16 @@ function graphValidation(node, input) {
 function graphPrompt(node, answers) {
   const message = interpolate(node.message || node.question, answers);
   if (node.type !== 'buttons') return message;
-  const choices = (node.options || []).map((option, index) => `${index + 1}- ${option.label}`).join('\n');
-  return [message, choices].filter(Boolean).join('\n');
+  return {
+    type: 'buttons', text: message,
+    buttons: (node.options || []).map((option, index) => ({ id: option.label, label: option.label, number: index + 1 }))
+  };
+}
+
+function stepPrompt(step) {
+  if (step?.type !== 'choice') return step?.question;
+  const text = String(step.question || '').split('\n').filter((line) => !/^\s*[0-9٠-٩]+\s*[-.)ـ]\s*/.test(line)).join('\n').trim();
+  return { type: 'buttons', text, buttons: (step.options || []).map((option, index) => ({ id: option.label, label: option.label, number: index + 1 })) };
 }
 
 async function advanceGraph(accountId, config, sessions, sender, session, firstNodeId) {
@@ -121,18 +129,18 @@ export async function processMessage(accountId, sender, text, displayName = '') 
   if (!session || restart) {
     sessions[sender] = { step: 0, answers: {}, displayName, startedAt: new Date().toISOString() };
     await saveSessions(accountId, sessions);
-    return [config.welcomeText, config.steps[0].question].filter(Boolean);
+    return [config.welcomeText, stepPrompt(config.steps[0])].filter(Boolean);
   }
 
   const step = config.steps[session.step];
   if (!step) {
     delete sessions[sender];
     await saveSessions(accountId, sessions);
-    return [config.welcomeText, config.steps[0].question].filter(Boolean);
+    return [config.welcomeText, stepPrompt(config.steps[0])].filter(Boolean);
   }
 
   const result = validate(step, text);
-  if (!result.ok) return [config.fallbackText, step.question].filter(Boolean);
+  if (!result.ok) return [config.fallbackText, stepPrompt(step)].filter(Boolean);
 
   session.answers[step.field || step.id] = result.value;
   session.step += 1;
@@ -140,7 +148,7 @@ export async function processMessage(accountId, sender, text, displayName = '') 
   if (session.step < config.steps.length) {
     sessions[sender] = session;
     await saveSessions(accountId, sessions);
-    return [config.steps[session.step].question];
+    return [stepPrompt(config.steps[session.step])];
   }
 
   const customers = await getCustomers(accountId);
