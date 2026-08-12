@@ -219,7 +219,9 @@ function bindPortLinking(){
 }
 function renderInspector() {
   const pane=$('#node-inspector'); if(!pane)return; const node=getBotNode(selectedNodeId);
-  if(!node){pane.innerHTML='<div class="inspector-empty"><span>⌘</span><h3>خصائص العقدة</h3><p>اختر عقدة من المخطط لتعديلها</p></div>';return;}
+  const shell=$('.builder-shell');
+  if(!node){pane.hidden=true;pane.innerHTML='';shell?.classList.remove('inspector-open');return;}
+  pane.hidden=false;shell?.classList.add('inspector-open');
   const messageField=!['start'].includes(node.type)?`<label>${node.type==='message'||node.type==='end'?'نص الرسالة':'نص السؤال'}<textarea id="inspect-message" rows="4">${escapeHtml(node.message||'')}</textarea></label>`:'';
   const fieldField=['input','phone','buttons'].includes(node.type)?`<label>حفظ الإجابة باسم<input id="inspect-field" value="${escapeHtml(node.field||'الإجابة')}" placeholder="مثال: المحافظة"></label>`:'';
   const nextField=!['buttons','end'].includes(node.type)?`<label>العقدة التالية<select id="inspect-next">${allTargetOptions(node.id,node.next)}</select></label>`:'';
