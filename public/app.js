@@ -19,7 +19,10 @@ async function api(url, options = {}) {
     localStorage.setItem(passwordKey, password);
     return api(url, options);
   }
-  const data = await response.json();
+  const raw = await response.text();
+  let data;
+  try { data = raw ? JSON.parse(raw) : {}; }
+  catch { throw new Error(response.ok ? 'استجابة الخادم غير صالحة، أعد المحاولة' : raw || 'الخادم غير متاح مؤقتاً'); }
   if (!response.ok) throw new Error(data.error || 'حدث خطأ');
   return data;
 }
@@ -311,5 +314,12 @@ $('#close-bot-preview').onclick=()=>{$('#bot-preview-modal').hidden=true;};
 $('#restart-bot-preview').onclick=startBotPreview;
 $('#bot-preview-form').onsubmit=e=>{e.preventDefault();const input=$('#bot-preview-input');const text=input.value.trim();input.value='';previewSubmit(text);};
 
-load().then(() => $('#restart-test').click()).catch(error => toast(error.message));
+async function boot(attempt=0) {
+  try { await load(); $('#restart-test').click(); }
+  catch (error) {
+    toast(error.message);
+    if (attempt < 3) setTimeout(() => boot(attempt + 1), 1500 * (attempt + 1));
+  }
+}
+boot();
 setInterval(refreshStatus, 4000);
