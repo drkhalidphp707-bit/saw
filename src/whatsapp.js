@@ -66,21 +66,27 @@ async function sendBotReply(socket, jid, reply) {
     const nativeButtons = buttons.length <= 3
       ? buttons.map((button) => ({ name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: String(button.label).slice(0, 20), id: button.id || button.label }) }))
       : [{ name: 'single_select', buttonParamsJson: JSON.stringify({ title: 'عرض الخيارات', sections: [{ title: 'اختر أحد الخيارات', rows: buttons.map((button) => ({ id: button.id || button.label, title: String(button.label).slice(0, 24), description: '' })) }] }) }];
-    const outgoing = generateWAMessageFromContent(jid, {
-      viewOnceMessage: { message: {
-        // WhatsApp clients require multi-device metadata and a header even when
-        // the interactive message does not contain media. Without them the
-        // message can be accepted by the server but rendered as an empty/text
-        // message on the receiving phone.
-        messageContextInfo: { deviceListMetadata: {}, deviceListMetadataVersion: 2 },
-        interactiveMessage: proto.Message.InteractiveMessage.create({
-          header: { title: '', subtitle: '', hasMediaAttachment: false },
-          body: { text: reply.text || 'اختر أحد الخيارات' },
-          footer: { text: 'اضغط على أحد الخيارات' },
-          nativeFlowMessage: { buttons: nativeButtons, messageParamsJson: '{}', messageVersion: 1 }
-        })
-      } }
-    }, { userJid: socket.user?.id });
+    // Native-flow messages must be relayed directly as an interactiveMessage.
+    // Wrapping this payload in viewOnce is silently discarded by newer clients.
+    const interactiveMessage = proto.Message.InteractiveMessage.create({
+      header: proto.Message.InteractiveMessage.Header.create({
+        title: '', subtitle: '', hasMediaAttachment: false
+      }),
+      body: proto.Message.InteractiveMessage.Body.create({
+        text: reply.text || 'اختر أحد الخيارات'
+      }),
+      footer: proto.Message.InteractiveMessage.Footer.create({
+        text: 'اضغط على أحد الخيارات'
+      }),
+      nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
+        buttons: nativeButtons.map((button) =>
+          proto.Message.InteractiveMessage.NativeFlowMessage.NativeFlowButton.create(button)
+        ),
+        messageParamsJson: '{}',
+        messageVersion: 1
+      })
+    });
+    const outgoing = generateWAMessageFromContent(jid, { interactiveMessage }, { userJid: socket.user?.id });
     return socket.relayMessage(jid, outgoing.message, {
       messageId: outgoing.key.id,
       additionalNodes: interactiveRelayNodes()
