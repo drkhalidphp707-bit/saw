@@ -7,7 +7,10 @@ import { processMessage } from './conversation.js';
 
 let socket;
 let reconnectTimer;
-let status = { state: 'disconnected', qr: null, phone: null, error: null };
+let status = {
+  state: 'disconnected', qr: null, phone: null, error: null,
+  lastMessageAt: null, lastReplyAt: null
+};
 const listeners = new Set();
 
 function update(patch) {
@@ -17,6 +20,37 @@ function update(patch) {
 
 export const getWhatsAppStatus = () => status;
 export const onWhatsAppStatus = (listener) => { listeners.add(listener); return () => listeners.delete(listener); };
+
+function unwrapMessage(content) {
+  let current = content;
+  for (let index = 0; index < 5 && current; index += 1) {
+    const wrapped =
+      current.ephemeralMessage?.message ||
+      current.viewOnceMessage?.message ||
+      current.viewOnceMessageV2?.message ||
+      current.viewOnceMessageV2Extension?.message ||
+      current.documentWithCaptionMessage?.message ||
+      current.editedMessage?.message;
+    if (!wrapped) break;
+    current = wrapped;
+  }
+  return current || {};
+}
+
+function getText(content) {
+  const message = unwrapMessage(content);
+  return (
+    message.conversation ||
+    message.extendedTextMessage?.text ||
+    message.imageMessage?.caption ||
+    message.videoMessage?.caption ||
+    message.documentMessage?.caption ||
+    message.buttonsResponseMessage?.selectedDisplayText ||
+    message.listResponseMessage?.title ||
+    message.templateButtonReplyMessage?.selectedDisplayText ||
+    ''
+  ).trim();
+}
 
 export async function startWhatsApp() {
   if (process.env.MODE !== 'whatsapp') {
@@ -48,15 +82,22 @@ export async function startWhatsApp() {
         if (code !== DisconnectReason.loggedOut) reconnectTimer = setTimeout(startWhatsApp, 5000);
       }
     });
-    socket.ev.on('messages.upsert', async ({ messages, type }) => {
-      if (type !== 'notify') return;
+    socket.ev.on('messages.upsert', async ({ messages }) => {
       for (const message of messages) {
-        if (message.key.fromMe || !message.message || message.key.remoteJid?.endsWith('@g.us')) continue;
-        const text = message.message.conversation || message.message.extendedTextMessage?.text;
+        const jid = message.key.remoteJidAlt || message.key.remoteJid;
+        if (message.key.fromMe || !message.message || !jid || jid.endsWith('@g.us') || jid === 'status@broadcast') continue;
+        const text = getText(message.message);
         if (!text) continue;
-        const replies = await processMessage(message.key.remoteJid, text, message.pushName || '');
-        for (const reply of replies) {
-          if (reply) await socket.sendMessage(message.key.remoteJid, { text: reply });
+        update({ lastMessageAt: new Date().toISOString(), error: null });
+        try {
+          const replies = await processMessage(jid, text, message.pushName || '');
+          for (const reply of replies) {
+            if (reply) await socket.sendMessage(jid, { text: reply });
+          }
+          if (replies.some(Boolean)) update({ lastReplyAt: new Date().toISOString() });
+        } catch (error) {
+          console.error('Failed to process WhatsApp message', error);
+          update({ error: `تعذر الرد: ${error.message}` });
         }
       }
     });
