@@ -15,7 +15,11 @@ app.use(express.static(path.join(root, 'public')));
 
 function requireAdmin(req, res, next) {
   const expected = process.env.ADMIN_PASSWORD;
-  if (!expected || req.headers['x-admin-password'] === expected) return next();
+  if (!expected) {
+    if (process.env.MODE !== 'whatsapp') return next();
+    return res.status(503).json({ error: 'يجب ضبط ADMIN_PASSWORD في متغيرات Railway لحماية لوحة الإدارة' });
+  }
+  if (req.headers['x-admin-password'] === expected) return next();
   res.status(401).json({ error: 'كلمة المرور غير صحيحة' });
 }
 
