@@ -13,6 +13,7 @@
       <button class="nav active" data-page="home">⌂ <span>الرئيسية</span></button>
       <button class="nav" data-page="flow">☷ <span>مسار الردود</span></button>
       <button class="nav" data-page="customers">♙ <span>الزبائن</span></button>
+      <button class="nav" data-page="bot">⌘ <span>Bot</span></button>
       <button class="nav" data-page="test">◁ <span>تجربة البوت</span></button>
     </nav>
     <div class="side-note">بياناتك محفوظة في خادمك</div>
@@ -45,11 +46,44 @@
       <article class="card table-wrap"><table><thead id="customer-head"></thead><tbody id="customer-body"></tbody></table><div id="empty-customers" class="empty">لا توجد بيانات بعد</div></article>
     </section>
 
+    <section class="page bot-page" id="bot">
+      <div class="bot-toolbar">
+        <div><h2>منشئ البوت</h2><p>أنشئ رسائل وأسئلة وأزراراً واربطها بمسارات مختلفة</p></div>
+        <div class="bot-toolbar-actions"><span id="bot-save-state">المخطط محفوظ</span><button id="bot-preview" class="ghost">▶ معاينة</button><button id="bot-save" class="ghost">حفظ المسودة</button><button id="bot-publish" class="primary">نشر على واتساب</button></div>
+      </div>
+      <div class="builder-shell">
+        <aside class="block-library">
+          <h3>الكتل</h3><p>اضغط لإضافة كتلة</p>
+          <div class="block-group"><b>المحادثة</b>
+            <button data-add-node="message"><i class="blue">✉</i><span>رسالة</span></button>
+            <button data-add-node="input"><i class="orange">أ</i><span>سؤال نصي</span></button>
+            <button data-add-node="phone"><i class="orange">☎</i><span>رقم هاتف</span></button>
+            <button data-add-node="buttons"><i class="yellow">☷</i><span>أزرار</span></button>
+          </div>
+          <div class="block-group"><b>المسار</b>
+            <button data-add-node="end"><i class="red">■</i><span>نهاية</span></button>
+          </div>
+          <div class="builder-help">اختر عقدة ثم أضف العقدة التالية ليتم ربطهما تلقائياً. ويمكن تغيير الرابط من لوحة الخصائص.</div>
+        </aside>
+        <div class="flow-canvas-wrap">
+          <div id="flow-canvas" class="flow-canvas">
+            <svg id="flow-lines" aria-hidden="true"></svg>
+            <div id="flow-nodes"></div>
+          </div>
+          <div class="canvas-controls"><button id="fit-flow" title="ترتيب المخطط">⌗ ترتيب</button><span>اسحب العقد لتحريكها</span></div>
+        </div>
+        <aside id="node-inspector" class="node-inspector"><div class="inspector-empty"><span>⌘</span><h3>خصائص العقدة</h3><p>اختر عقدة من المخطط لتعديلها</p></div></aside>
+      </div>
+    </section>
+
     <section class="page" id="test">
       <div class="section-title"><div><h2>تجربة البوت</h2><p>اختبر المسار من اللوحة قبل ربط واتساب</p></div><button id="restart-test" class="ghost">بدء محادثة جديدة</button></div>
       <div class="phone"><div class="phone-head"><span class="avatar">و</span><div><b id="chat-name">المساعد الآلي</b><small>متصل الآن</small></div></div><div class="chat" id="chat"></div><form id="chat-form"><input id="chat-input" autocomplete="off" placeholder="اكتب رسالة…" /><button>إرسال</button></form></div>
     </section>
   </main>
+  <div id="bot-preview-modal" class="preview-modal" hidden>
+    <div class="preview-dialog"><button id="close-bot-preview" class="preview-close">×</button><div class="phone"><div class="phone-head"><span class="avatar">و</span><div><b>معاينة البوت</b><small>المسودة الحالية</small></div></div><div class="chat" id="bot-preview-chat"></div><form id="bot-preview-form"><input id="bot-preview-input" autocomplete="off" placeholder="اكتب رسالة…"><button>إرسال</button></form></div><button id="restart-bot-preview" class="ghost">إعادة التجربة</button></div>
+  </div>
   <div id="toast"></div>
   <script src="/app.js" type="module"></script>
 </body>

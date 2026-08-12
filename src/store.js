@@ -33,7 +33,9 @@ const defaultConfig = {
       question: 'يرجى كتابة رقم الهاتف:',
       field: 'رقم الهاتف'
     }
-  ]
+  ],
+  botFlow: null,
+  botFlowDraft: null
 };
 
 async function readJson(file, fallback) {
