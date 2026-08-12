@@ -172,8 +172,8 @@ function renderBotFlow() {
   if (!botFlow) return;
   const holder=$('#flow-nodes');
   holder.innerHTML=botFlow.nodes.map(node=>{
-    const options=node.type==='buttons' ? `<div class="visual-node-options">${(node.options||[]).map((o,i)=>`<span>${i+1}. ${escapeHtml(o.label||'زر جديد')}</span>`).join('')}</div>`:'';
-    const ports=node.type==='buttons' ? (node.options||[]).map((o,i)=>`<i class="option-port link-port out" data-source-node="${node.id}" data-option-index="${i}" style="top:${72+i*27}px" title="اسحب لربط: ${escapeHtml(o.label)}"></i>`).join('') : (node.type!=='end'?`<i class="node-port link-port out" data-source-node="${node.id}" title="اسحب لربط العقدة التالية"></i>`:'');
+    const options=node.type==='buttons' ? `<div class="visual-node-options">${(node.options||[]).map((o,i)=>`<span style="--option-color:${['#6366f1','#10b981','#f59e0b'][i%3]}">${i+1}. ${escapeHtml(o.label||'زر جديد')}</span>`).join('')}</div>`:'';
+    const ports=node.type==='buttons' ? (node.options||[]).map((o,i)=>`<i class="option-port link-port out" data-source-node="${node.id}" data-option-index="${i}" style="top:${87+i*32}px;background:${['#6366f1','#10b981','#f59e0b'][i%3]}" title="اسحب لربط: ${escapeHtml(o.label)}"></i>`).join('') : (node.type!=='end'?`<i class="node-port link-port out" data-source-node="${node.id}" title="اسحب لربط العقدة التالية"></i>`:'');
     return `<div class="visual-node ${node.type} ${node.id===selectedNodeId?'selected':''}" data-node-id="${node.id}" style="left:${node.x||0}px;top:${node.y||0}px"><div class="visual-node-head"><b>${nodeMeta[node.type].icon}</b>${nodeMeta[node.type].label}</div><div class="visual-node-body">${escapeHtml(nodeSummary(node))}</div>${options}${node.type!=='start'?`<i class="node-port link-port in" data-target-node="${node.id}" title="أفلت الخط هنا"></i>`:''}${ports}</div>`;
   }).join('');
   drawFlowLines(); renderInspector(); bindNodeDragging(); bindPortLinking();
@@ -181,7 +181,7 @@ function renderBotFlow() {
 function nodeAnchor(node, outgoing=true, optionIndex=null) {
   const el=$(`[data-node-id="${node.id}"]`); if(!el)return {x:0,y:0};
   const x=(node.x||0)+(outgoing?el.offsetWidth:0);
-  const y=(node.y||0)+(optionIndex===null?el.offsetHeight/2:72+optionIndex*27);
+  const y=(node.y||0)+(optionIndex===null?el.offsetHeight-7:87+optionIndex*32);
   return {x,y};
 }
 function curvePath(from,to) { const bend=Math.max(70,Math.abs(to.x-from.x)*.45); return `M ${from.x} ${from.y} C ${from.x+bend} ${from.y}, ${to.x-bend} ${to.y}, ${to.x} ${to.y}`; }
@@ -224,7 +224,8 @@ function renderInspector() {
   const fieldField=['input','phone','buttons'].includes(node.type)?`<label>حفظ الإجابة باسم<input id="inspect-field" value="${escapeHtml(node.field||'الإجابة')}" placeholder="مثال: المحافظة"></label>`:'';
   const nextField=!['buttons','end'].includes(node.type)?`<label>العقدة التالية<select id="inspect-next">${allTargetOptions(node.id,node.next)}</select></label>`:'';
   const optionFields=node.type==='buttons'?`<div class="inspector-options"><label>الأزرار <small>(حتى 3)</small></label>${(node.options||[]).map((option,index)=>`<div class="inspector-option" data-option-index="${index}"><div class="inspector-option-head"><b>زر ${index+1}</b><button class="delete-bot-option">×</button></div><input class="inspect-option-label" value="${escapeHtml(option.label||'')}" placeholder="عنوان الزر"><input class="inspect-option-aliases" value="${escapeHtml((option.aliases||[]).join('، '))}" placeholder="كلمات بديلة: 1، بغداد"><select class="inspect-option-next">${allTargetOptions(node.id,option.next)}</select></div>`).join('')}<button id="add-bot-option" class="ghost" ${(node.options||[]).length>=3?'disabled':''}>＋ إضافة زر</button></div>`:'';
-  pane.innerHTML=`<span class="inspector-type">${nodeMeta[node.type].icon} ${nodeMeta[node.type].label}</span><h3>خصائص العقدة</h3>${messageField}${fieldField}${nextField}${optionFields}<div class="inspector-actions">${node.type!=='start'?'<button id="delete-bot-node" class="ghost danger">حذف</button>':''}<button id="duplicate-bot-node" class="ghost">نسخ</button></div>`;
+  pane.innerHTML=`<div class="inspector-heading"><div><span class="inspector-type">${nodeMeta[node.type].icon} ${nodeMeta[node.type].label}</span><h3>خصائص العقدة</h3></div><button id="close-inspector" title="إغلاق">×</button></div><label>معرّف العقدة<input class="node-id-field" value="${escapeHtml(node.id)}" disabled></label>${messageField}${fieldField}${nextField}${optionFields}<div class="inspector-actions">${node.type!=='start'?'<button id="delete-bot-node" class="ghost danger">حذف</button>':''}<button id="duplicate-bot-node" class="ghost">▣ نسخ</button></div>`;
+  $('#close-inspector',pane).onclick=()=>{selectedNodeId=null;renderBotFlow();};
   $('#inspect-message',pane)?.addEventListener('input',e=>{node.message=e.target.value;updateSelectedCard(node);markFlowDirty();});
   $('#inspect-field',pane)?.addEventListener('input',e=>{node.field=e.target.value;markFlowDirty();});
   $('#inspect-next',pane)?.addEventListener('change',e=>{node.next=e.target.value||null;drawFlowLines();markFlowDirty();});
@@ -233,7 +234,7 @@ function renderInspector() {
   $('#delete-bot-node',pane)?.addEventListener('click',()=>deleteBotNode(node.id));
   $('#duplicate-bot-node',pane)?.addEventListener('click',()=>{const copy=structuredClone(node);copy.id=newId(copy.type);copy.x=(node.x||0)+40;copy.y=(node.y||0)+60;if(copy.type==='start')copy.type='message';botFlow.nodes.push(copy);selectedNodeId=copy.id;renderBotFlow();markFlowDirty();});
 }
-function updateSelectedCard(node){const el=$(`[data-node-id="${node.id}"]`);if(!el)return;$('.visual-node-body',el).textContent=nodeSummary(node);if(node.type==='buttons')$('.visual-node-options',el).innerHTML=(node.options||[]).map((o,i)=>`<span>${i+1}. ${escapeHtml(o.label||'زر جديد')}</span>`).join('');}
+function updateSelectedCard(node){const el=$(`[data-node-id="${node.id}"]`);if(!el)return;$('.visual-node-body',el).textContent=nodeSummary(node);if(node.type==='buttons')$('.visual-node-options',el).innerHTML=(node.options||[]).map((o,i)=>`<span style="--option-color:${['#6366f1','#10b981','#f59e0b'][i%3]}">${i+1}. ${escapeHtml(o.label||'زر جديد')}</span>`).join('');}
 function deleteBotNode(id){botFlow.nodes=botFlow.nodes.filter(n=>n.id!==id);for(const n of botFlow.nodes){if(n.next===id)n.next=null;(n.options||[]).forEach(o=>{if(o.next===id)o.next=null;});}selectedNodeId=null;renderBotFlow();markFlowDirty();}
 function addBotNode(type){
   if(type==='start'&&botFlow.nodes.some(n=>n.type==='start'))return toast('توجد عقدة بداية بالفعل');
@@ -247,6 +248,7 @@ function addBotNode(type){
   botFlow.nodes.push(node); selectedNodeId=node.id;renderBotFlow();markFlowDirty();
 }
 $$('[data-add-node]').forEach(button=>button.onclick=()=>addBotNode(button.dataset.addNode));
+$('#block-search').oninput=event=>{const query=event.target.value.trim().toLowerCase();$$('[data-add-node]').forEach(button=>{button.hidden=query&&!button.textContent.toLowerCase().includes(query);});};
 $('#fit-flow').onclick=()=>{let x=70,y=100;const visited=new Set();let node=botFlow.nodes.find(n=>n.type==='start');while(node&&!visited.has(node.id)){visited.add(node.id);node.x=x;node.y=y;x+=280;node=getBotNode(node.next||(node.options?.[0]?.next));}botFlow.nodes.filter(n=>!visited.has(n.id)).forEach((n,i)=>{n.x=70+(i%4)*280;n.y=340+Math.floor(i/4)*190;});renderBotFlow();markFlowDirty();};
 
 async function saveBotFlow(publish=false){
