@@ -173,10 +173,10 @@ function renderBotFlow() {
   const holder=$('#flow-nodes');
   holder.innerHTML=botFlow.nodes.map(node=>{
     const options=node.type==='buttons' ? `<div class="visual-node-options">${(node.options||[]).map((o,i)=>`<span>${i+1}. ${escapeHtml(o.label||'زر جديد')}</span>`).join('')}</div>`:'';
-    const ports=node.type==='buttons' ? (node.options||[]).map((o,i)=>`<i class="option-port" style="top:${72+i*27}px" title="${escapeHtml(o.label)}"></i>`).join('') : (node.type!=='end'?'<i class="node-port out"></i>':'');
-    return `<div class="visual-node ${node.type} ${node.id===selectedNodeId?'selected':''}" data-node-id="${node.id}" style="left:${node.x||0}px;top:${node.y||0}px"><div class="visual-node-head"><b>${nodeMeta[node.type].icon}</b>${nodeMeta[node.type].label}</div><div class="visual-node-body">${escapeHtml(nodeSummary(node))}</div>${options}${node.type!=='start'?'<i class="node-port in"></i>':''}${ports}</div>`;
+    const ports=node.type==='buttons' ? (node.options||[]).map((o,i)=>`<i class="option-port link-port out" data-source-node="${node.id}" data-option-index="${i}" style="top:${72+i*27}px" title="اسحب لربط: ${escapeHtml(o.label)}"></i>`).join('') : (node.type!=='end'?`<i class="node-port link-port out" data-source-node="${node.id}" title="اسحب لربط العقدة التالية"></i>`:'');
+    return `<div class="visual-node ${node.type} ${node.id===selectedNodeId?'selected':''}" data-node-id="${node.id}" style="left:${node.x||0}px;top:${node.y||0}px"><div class="visual-node-head"><b>${nodeMeta[node.type].icon}</b>${nodeMeta[node.type].label}</div><div class="visual-node-body">${escapeHtml(nodeSummary(node))}</div>${options}${node.type!=='start'?`<i class="node-port link-port in" data-target-node="${node.id}" title="أفلت الخط هنا"></i>`:''}${ports}</div>`;
   }).join('');
-  drawFlowLines(); renderInspector(); bindNodeDragging();
+  drawFlowLines(); renderInspector(); bindNodeDragging(); bindPortLinking();
 }
 function nodeAnchor(node, outgoing=true, optionIndex=null) {
   const el=$(`[data-node-id="${node.id}"]`); if(!el)return {x:0,y:0};
@@ -196,10 +196,24 @@ function drawFlowLines() {
 function bindNodeDragging() {
   $$('.visual-node').forEach(el=>{
     el.onpointerdown=(event)=>{
-      if(event.button!==0)return; const node=getBotNode(el.dataset.nodeId); selectedNodeId=node.id; renderInspector(); $$('.visual-node').forEach(x=>x.classList.toggle('selected',x===el));
+      if(event.button!==0 || event.target.closest('.link-port'))return; const node=getBotNode(el.dataset.nodeId); selectedNodeId=node.id; renderInspector(); $$('.visual-node').forEach(x=>x.classList.toggle('selected',x===el));
       const startX=event.clientX,startY=event.clientY,originX=node.x||0,originY=node.y||0; let moved=false; el.setPointerCapture(event.pointerId);
       el.onpointermove=(move)=>{if(Math.abs(move.clientX-startX)+Math.abs(move.clientY-startY)>3)moved=true;node.x=Math.max(10,originX+move.clientX-startX);node.y=Math.max(10,originY+move.clientY-startY);el.style.left=`${node.x}px`;el.style.top=`${node.y}px`;drawFlowLines();};
       el.onpointerup=()=>{el.onpointermove=null;if(moved)markFlowDirty();};
+    };
+  });
+}
+function pointerOnCanvas(event){const rect=$('#flow-canvas').getBoundingClientRect();return{x:event.clientX-rect.left,y:event.clientY-rect.top};}
+function bindPortLinking(){
+  $$('.link-port.out').forEach(port=>{
+    port.onpointerdown=event=>{
+      if(event.button!==0)return;event.preventDefault();event.stopPropagation();
+      const sourceId=port.dataset.sourceNode;const optionIndex=port.dataset.optionIndex==null?null:Number(port.dataset.optionIndex);const source=getBotNode(sourceId);if(!source)return;
+      selectedNodeId=sourceId;$$('.visual-node').forEach(x=>x.classList.toggle('selected',x.dataset.nodeId===sourceId));renderInspector();
+      const start=nodeAnchor(source,true,optionIndex);const svg=$('#flow-lines');const draft=document.createElementNS('http://www.w3.org/2000/svg','path');draft.setAttribute('class','flow-line linking-line');draft.setAttribute('d',curvePath(start,start));svg.append(draft);document.body.classList.add('is-linking');
+      const move=moveEvent=>{draft.setAttribute('d',curvePath(start,pointerOnCanvas(moveEvent)));const target=document.elementFromPoint(moveEvent.clientX,moveEvent.clientY)?.closest('.link-port.in');$$('.link-port.in').forEach(x=>x.classList.toggle('link-target',x===target&&x.dataset.targetNode!==sourceId));};
+      const finish=upEvent=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',finish);document.body.classList.remove('is-linking');$$('.link-port.in').forEach(x=>x.classList.remove('link-target'));const target=document.elementFromPoint(upEvent.clientX,upEvent.clientY)?.closest('.link-port.in');const targetId=target?.dataset.targetNode;if(targetId&&targetId!==sourceId){if(optionIndex===null)source.next=targetId;else if(source.options?.[optionIndex])source.options[optionIndex].next=targetId;renderBotFlow();markFlowDirty();toast('تم ربط المسار');}else{draft.remove();drawFlowLines();}};
+      window.addEventListener('pointermove',move);window.addEventListener('pointerup',finish,{once:true});
     };
   });
 }
