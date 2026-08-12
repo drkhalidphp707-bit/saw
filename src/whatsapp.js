@@ -36,6 +36,28 @@ function getText(content) {
 
 const fallbackButtonText = (reply) => [reply.text, ...(reply.buttons || []).map((button, index) => `${index + 1}- ${button.label}`)].filter(Boolean).join('\n');
 
+function interactiveRelayNodes() {
+  return [
+    { tag: 'bot', attrs: { biz_bot: '1' } },
+    {
+      tag: 'biz',
+      attrs: {
+        actual_actors: '2',
+        host_storage: '2',
+        privacy_mode_ts: String(Math.floor(Date.now() / 1000) - 77980457)
+      },
+      content: [
+        {
+          tag: 'interactive',
+          attrs: { type: 'native_flow', v: '1' },
+          content: [{ tag: 'native_flow', attrs: { v: '9', name: 'mixed' } }]
+        },
+        { tag: 'quality_control', attrs: { source_type: 'third_party' } }
+      ]
+    }
+  ];
+}
+
 async function sendBotReply(socket, jid, reply) {
   if (typeof reply === 'string') return socket.sendMessage(jid, { text: reply });
   if (reply?.type !== 'buttons' || !reply.buttons?.length) return;
@@ -45,12 +67,24 @@ async function sendBotReply(socket, jid, reply) {
       ? buttons.map((button) => ({ name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: String(button.label).slice(0, 20), id: button.id || button.label }) }))
       : [{ name: 'single_select', buttonParamsJson: JSON.stringify({ title: 'عرض الخيارات', sections: [{ title: 'اختر أحد الخيارات', rows: buttons.map((button) => ({ id: button.id || button.label, title: String(button.label).slice(0, 24), description: '' })) }] }) }];
     const outgoing = generateWAMessageFromContent(jid, {
-      viewOnceMessage: { message: { interactiveMessage: proto.Message.InteractiveMessage.create({
-        body: { text: reply.text || 'اختر أحد الخيارات' }, footer: { text: 'اضغط على أحد الخيارات' },
-        nativeFlowMessage: { buttons: nativeButtons, messageVersion: 3 }
-      }) } }
+      viewOnceMessage: { message: {
+        // WhatsApp clients require multi-device metadata and a header even when
+        // the interactive message does not contain media. Without them the
+        // message can be accepted by the server but rendered as an empty/text
+        // message on the receiving phone.
+        messageContextInfo: { deviceListMetadata: {}, deviceListMetadataVersion: 2 },
+        interactiveMessage: proto.Message.InteractiveMessage.create({
+          header: { title: '', subtitle: '', hasMediaAttachment: false },
+          body: { text: reply.text || 'اختر أحد الخيارات' },
+          footer: { text: 'اضغط على أحد الخيارات' },
+          nativeFlowMessage: { buttons: nativeButtons, messageParamsJson: '{}', messageVersion: 1 }
+        })
+      } }
     }, { userJid: socket.user?.id });
-    return socket.relayMessage(jid, outgoing.message, { messageId: outgoing.key.id });
+    return socket.relayMessage(jid, outgoing.message, {
+      messageId: outgoing.key.id,
+      additionalNodes: interactiveRelayNodes()
+    });
   } catch (error) {
     console.error('Interactive buttons failed, using text fallback', error);
     return socket.sendMessage(jid, { text: fallbackButtonText(reply) });
