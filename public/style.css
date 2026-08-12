@@ -6,3 +6,4 @@
 
 /* Reference-inspired builder theme */
 .builder-shell{grid-template-columns:250px minmax(620px,1fr)}.builder-shell.inspector-open{grid-template-columns:250px minmax(620px,1fr) 340px}@media(max-width:1100px){.builder-shell{grid-template-columns:200px minmax(540px,1fr)}.builder-shell.inspector-open{grid-template-columns:200px minmax(540px,1fr) 300px}}@media(max-width:800px){.builder-shell,.builder-shell.inspector-open{grid-template-columns:1fr}}
+.visual-node.phone{width:270px;height:auto;min-height:0;margin:0;background:#fff;border:2px solid #edf0f2;border-radius:14px;overflow:visible;display:block;box-shadow:0 7px 20px #142d4020}.visual-node.phone.selected{border-color:#725df5;box-shadow:0 0 0 4px #725df51a,0 8px 24px #142d4025}.visual-node.phone .visual-node-head{display:flex}.visual-node.phone .visual-node-body{display:block}
