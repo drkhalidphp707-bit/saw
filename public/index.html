@@ -49,7 +49,7 @@
     <section class="page bot-page" id="bot">
       <div class="bot-toolbar">
         <div><h2>منشئ البوت</h2><p>أنشئ رسائل وأسئلة وأزراراً واربطها بمسارات مختلفة</p></div>
-        <div class="bot-toolbar-actions"><span id="bot-save-state">المخطط محفوظ</span><button id="bot-preview" class="ghost">▶ معاينة</button><button id="bot-save" class="ghost">حفظ المسودة</button><button id="bot-publish" class="primary">نشر على واتساب</button></div>
+        <div class="bot-toolbar-actions"><span id="bot-save-state">المخطط محفوظ</span><input id="bot-import-file" type="file" accept="application/json,.json" hidden><button id="bot-import" class="ghost">↑ استيراد JSON</button><button id="bot-export" class="ghost">↓ تصدير JSON</button><button id="bot-preview" class="ghost">▶ معاينة</button><button id="bot-save" class="ghost">حفظ المسودة</button><button id="bot-publish" class="primary">نشر على واتساب</button></div>
       </div>
       <div class="builder-shell">
         <aside class="block-library">
@@ -63,7 +63,7 @@
           <div class="block-group"><b>المسار</b>
             <button data-add-node="end"><i class="red">■</i><span>نهاية</span></button>
           </div>
-          <div class="builder-help">اختر عقدة ثم أضف العقدة التالية ليتم ربطهما تلقائياً. ويمكن تغيير الرابط من لوحة الخصائص.</div>
+          <div class="builder-help">أضف العقد بحرية، ثم اسحب من الدائرة الخارجة إلى الدائرة الداخلة لربطها. كل زر له دائرة ومسار مستقل.</div>
         </aside>
         <div class="flow-canvas-wrap">
           <div id="flow-canvas" class="flow-canvas">

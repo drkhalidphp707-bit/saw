@@ -244,7 +244,7 @@ function addBotNode(type){
   if(type==='phone')Object.assign(node,{message:'يرجى كتابة رقم الهاتف:',field:'رقم الهاتف'});
   if(type==='buttons')Object.assign(node,{message:'اختر من القائمة:',field:'الاختيار',options:[{id:newId('option'),label:'الخيار الأول',aliases:['1'],next:null},{id:newId('option'),label:'الخيار الثاني',aliases:['2'],next:null}]});
   if(type==='end')node.message='تم تسجيل معلوماتك بنجاح ✅';
-  botFlow.nodes.push(node); if(selected&&selected.type!=='buttons'&&selected.type!=='end')selected.next=node.id; selectedNodeId=node.id;renderBotFlow();markFlowDirty();
+  botFlow.nodes.push(node); selectedNodeId=node.id;renderBotFlow();markFlowDirty();
 }
 $$('[data-add-node]').forEach(button=>button.onclick=()=>addBotNode(button.dataset.addNode));
 $('#fit-flow').onclick=()=>{let x=70,y=100;const visited=new Set();let node=botFlow.nodes.find(n=>n.type==='start');while(node&&!visited.has(node.id)){visited.add(node.id);node.x=x;node.y=y;x+=280;node=getBotNode(node.next||(node.options?.[0]?.next));}botFlow.nodes.filter(n=>!visited.has(n.id)).forEach((n,i)=>{n.x=70+(i%4)*280;n.y=340+Math.floor(i/4)*190;});renderBotFlow();markFlowDirty();};
@@ -255,6 +255,44 @@ async function saveBotFlow(publish=false){
 }
 $('#bot-save').onclick=()=>saveBotFlow(false).catch(e=>toast(e.message));
 $('#bot-publish').onclick=()=>saveBotFlow(true).catch(e=>toast(e.message));
+
+function exportBotJson(){
+  const typeMap={start:'start',message:'text',input:'input_text',phone:'phone',buttons:'buttons',end:'end'};
+  const blocks=botFlow.nodes.map(node=>{
+    const data={uid:node.id};
+    if(node.type==='message'||node.type==='end')data.text=node.message||'';
+    if(node.type==='input'||node.type==='phone')Object.assign(data,{question:node.message||'',variable:node.field||'',required:'true',button_label:'إرسال'});
+    if(node.type==='buttons')Object.assign(data,{text:node.message||'',options:(node.options||[]).map(o=>o.label).join(','),variable:node.field||''});
+    return {id:node.id,bot_id:'local',type:typeMap[node.type],data:JSON.stringify(data),pos_x:String(Math.round(node.x||0)),pos_y:String(Math.round(node.y||0)),created_at:new Date().toISOString()};
+  });
+  const edges=[];
+  for(const node of botFlow.nodes){
+    if(node.type==='buttons'){
+      for(const option of node.options||[]){if(option.next)edges.push({id:newId('edge'),bot_id:'local',from_block_id:node.id,to_block_id:option.next,condition_type:'button',condition_value:option.label});}
+    }else if(node.next)edges.push({id:newId('edge'),bot_id:'local',from_block_id:node.id,to_block_id:node.next,condition_type:null,condition_value:'default'});
+  }
+  return {meta:{name:botFlow.name||'WhatsApp Bot',description:'Visual WhatsApp bot flow',keywords:'',version:'3.0',exported_at:new Date().toISOString()},blocks,edges};
+}
+function importBotJson(payload){
+  if(!payload||!Array.isArray(payload.blocks)||!Array.isArray(payload.edges))throw new Error('ملف JSON لا يحتوي blocks و edges');
+  const typeMap={start:'start',text:'message',input_text:'input',phone:'phone',input_phone:'phone',buttons:'buttons',end:'end'};
+  const nodes=payload.blocks.map((block,index)=>{
+    const type=typeMap[block.type];if(!type)return null;
+    let data={};try{data=typeof block.data==='string'?JSON.parse(block.data):block.data||{};}catch{throw new Error(`بيانات العقدة ${block.id} غير صالحة`);}
+    const node={id:block.id||newId(type),type,x:Number(block.pos_x)||100+(index%4)*270,y:Number(block.pos_y)||100+Math.floor(index/4)*180};
+    if(type==='message'||type==='end')node.message=data.text||'';
+    if(type==='input'||type==='phone')Object.assign(node,{message:data.question||data.text||'',field:data.variable||'الإجابة'});
+    if(type==='buttons')Object.assign(node,{message:data.text||data.question||'',field:data.variable||'الاختيار',options:String(data.options||'').split(',').map((label,i)=>({id:newId('option'),label:label.trim()||`زر ${i+1}`,aliases:[String(i+1)],next:null})).filter(o=>o.label)});
+    return node;
+  }).filter(Boolean);
+  const byId=new Map(nodes.map(node=>[node.id,node]));
+  for(const edge of payload.edges){const source=byId.get(edge.from_block_id);if(!source||!byId.has(edge.to_block_id))continue;if(source.type==='buttons'){if(edge.condition_value==='default'){for(const option of source.options||[])option.next=edge.to_block_id;}else{const option=(source.options||[]).find(o=>o.label===edge.condition_value);if(option)option.next=edge.to_block_id;}}else source.next=edge.to_block_id;}
+  if(!nodes.some(n=>n.type==='start'))throw new Error('الملف لا يحتوي عقدة بداية');
+  botFlow={name:payload.meta?.name||'بوت مستورد',nodes};selectedNodeId=null;renderBotFlow();markFlowDirty();toast('تم استيراد المخطط، راجعه ثم احفظه');
+}
+$('#bot-export').onclick=()=>{const blob=new Blob([JSON.stringify(exportBotJson(),null,2)],{type:'application/json'});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`${(botFlow.name||'bot').replace(/[^\p{L}\p{N}_-]+/gu,'-')}.json`;link.click();URL.revokeObjectURL(link.href);};
+$('#bot-import').onclick=()=>$('#bot-import-file').click();
+$('#bot-import-file').onchange=async event=>{const file=event.target.files?.[0];if(!file)return;try{importBotJson(JSON.parse(await file.text()));}catch(error){toast(error.message);}event.target.value='';};
 
 function interpolatePreview(text,answers){return String(text||'').replace(/\{\{\s*([^}]+?)\s*\}\}/g,(_m,k)=>answers[k]??'');}
 function previewBubble(text,who,options=[]){const div=document.createElement('div');div.className=`bubble ${who}`;div.append(document.createTextNode(text));for(const option of options){const button=document.createElement('button');button.className='preview-choice';button.textContent=option.label;button.onclick=()=>previewSubmit(option.label);div.append(button);}$('#bot-preview-chat').append(div);$('#bot-preview-chat').scrollTop=$('#bot-preview-chat').scrollHeight;}

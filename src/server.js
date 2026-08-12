@@ -69,7 +69,7 @@ app.post('/api/bot-flow/publish', requireAdmin, async (req, res) => {
     const node = byId.get(id);
     if (!node) continue;
     if (node.type === 'end') { hasReachableEnd = true; continue; }
-    const links = node.type === 'buttons' ? (node.options || []).map((option) => option.next) : [node.next];
+    const links = node.type === 'buttons' ? (node.options || []).map((option) => option.next || node.next) : [node.next];
     if (!links.length || links.some((link) => !link)) {
       return res.status(400).json({ error: `أكمل ربط عقدة: ${node.message || node.type}` });
     }
