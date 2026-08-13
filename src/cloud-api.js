@@ -135,6 +135,26 @@ async function sendCloudPayload(settings, to, payload) {
 export async function sendCloudReply(accountId, to, reply) {
   const settings = await privateSettings(accountId);
   if (typeof reply === 'string') return sendCloudPayload(settings, to, { type: 'text', text: { body: reply, preview_url: false } });
+  if (reply?.type === 'carousel') {
+    if (!reply.templateName) throw new Error('أدخل اسم قالب Carousel المعتمد في Meta');
+    const cards = (reply.cards || []).filter((card) => card.imageUrl).slice(0, 10);
+    if (cards.length < 2) throw new Error('قالب Carousel يحتاج صورتين على الأقل');
+    const components = [];
+    if (reply.bodyValue) components.push({ type: 'body', parameters: [{ type: 'text', text: reply.bodyValue }] });
+    components.push({
+      type: 'carousel',
+      cards: cards.map((card, cardIndex) => {
+        const cardComponents = [{ type: 'header', parameters: [{ type: 'image', image: { link: card.imageUrl } }] }];
+        if (card.bodyValue) cardComponents.push({ type: 'body', parameters: [{ type: 'text', text: card.bodyValue }] });
+        if (card.buttonValue) cardComponents.push({ type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: card.buttonValue }] });
+        return { card_index: cardIndex, components: cardComponents };
+      })
+    });
+    return sendCloudPayload(settings, to, {
+      type: 'template',
+      template: { name: reply.templateName, language: { code: reply.languageCode || 'ar' }, components }
+    });
+  }
   const buttons = (reply?.buttons || []).filter((button) => button.label).slice(0, 10);
   if (reply?.type !== 'buttons' || !buttons.length) return null;
   if (buttons.length <= 3) {
