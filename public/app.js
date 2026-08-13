@@ -193,6 +193,23 @@ $('#test-cloud').onclick = async () => {
     $('#cloud-result').className='cloud-result good'; await refreshStatus();
   } catch (error) { $('#cloud-result').textContent=`فشل الاتصال: ${error.message}`; $('#cloud-result').className='cloud-result bad'; }
 };
+$('#check-cloud-events').onclick = async () => {
+  const box = $('#cloud-events'); box.hidden = false; box.textContent = 'جاري قراءة آخر الرسائل…';
+  try {
+    const data = await api('/api/cloud/diagnostics');
+    const labels = {
+      webhook_received:'وصل Webhook من Meta', message_received:'وصلت رسالة الزبون',
+      bot_replies_ready:'جهّز البوت الرد', reply_sent:'أرسل الموقع الرد',
+      message_processing_failed:'فشل تجهيز/إرسال الرد', webhook_ignored:'تم تجاهل Webhook',
+      app_subscription_checked:'تم فحص اشتراك التطبيق'
+    };
+    box.textContent = (data.events || []).slice(0, 15).map(event => {
+      const time = new Date(event.at).toLocaleTimeString('ar-IQ', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      const details = [event.selection && `المدخل: ${event.selection}`, event.count != null && `الردود: ${event.count}`, event.replyType && `النوع: ${event.replyType}`, event.reason && `السبب: ${event.reason}`, event.error && `الخطأ: ${event.error}`].filter(Boolean).join(' — ');
+      return `${time} | ${labels[event.type] || event.type}${details ? ` — ${details}` : ''}`;
+    }).join('\n') || 'لا توجد رسائل واردة منذ آخر تشغيل للخادم.';
+  } catch (error) { box.textContent = `تعذر قراءة السجل: ${error.message}`; }
+};
 $$('[data-copy]').forEach(button => button.onclick = async () => {
   const value = $(`#${button.dataset.copy}`).value; if (!value) return toast('احفظ الاتصال أولاً');
   await navigator.clipboard.writeText(value); toast('تم النسخ');
