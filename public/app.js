@@ -231,7 +231,7 @@ $('#export').onclick = () => {
 const nodeMeta = {
   start: { label:'بداية', icon:'⚑' }, message: { label:'رسالة', icon:'✉' },
   input: { label:'سؤال نصي', icon:'أ' }, phone: { label:'رقم هاتف', icon:'☎' },
-  buttons: { label:'أزرار', icon:'☷' }, end: { label:'نهاية', icon:'■' }
+  buttons: { label:'أزرار', icon:'☷' }, carousel: { label:'سلايدر منتجات', icon:'▤' }, end: { label:'نهاية', icon:'■' }
 };
 
 function newId(prefix='node') { return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`; }
@@ -252,6 +252,7 @@ function getBotNode(id) { return botFlow.nodes.find(node => node.id === id); }
 function nodeSummary(node) {
   if (node.type==='start') return 'بداية المحادثة';
   if (node.type==='end') return node.message || 'إنهاء وحفظ بيانات الزبون';
+  if (node.type==='carousel') return node.templateName ? `قالب Meta: ${node.templateName}` : 'سلايدر صور ومنتجات';
   return node.message || (node.type==='message' ? 'اكتب رسالتك هنا' : 'اكتب السؤال هنا');
 }
 function markFlowDirty() { flowDirty=true; const el=$('#bot-save-state'); el.textContent='تغييرات غير محفوظة'; el.className='dirty-badge'; }
@@ -316,17 +317,23 @@ function renderInspector() {
   const shell=$('.builder-shell');
   if(!node){pane.hidden=true;pane.innerHTML='';shell?.classList.remove('inspector-open');return;}
   pane.hidden=false;shell?.classList.add('inspector-open');
-  const messageField=!['start'].includes(node.type)?`<label>${node.type==='message'||node.type==='end'?'نص الرسالة':'نص السؤال'}<textarea id="inspect-message" rows="4">${escapeHtml(node.message||'')}</textarea></label>`:'';
+  const messageField=!['start','carousel'].includes(node.type)?`<label>${node.type==='message'||node.type==='end'?'نص الرسالة':'نص السؤال'}<textarea id="inspect-message" rows="4">${escapeHtml(node.message||'')}</textarea></label>`:'';
   const fieldField=['input','phone','buttons'].includes(node.type)?`<label>حفظ الإجابة باسم<input id="inspect-field" value="${escapeHtml(node.field||'الإجابة')}" placeholder="مثال: المحافظة"></label>`:'';
   const nextField=!['buttons','end'].includes(node.type)?`<label>العقدة التالية<select id="inspect-next">${allTargetOptions(node.id,node.next)}</select></label>`:'';
   const optionFields=node.type==='buttons'?`<div class="inspector-options"><label>الأزرار <small>(حتى 3)</small></label>${(node.options||[]).map((option,index)=>`<div class="inspector-option" data-option-index="${index}"><div class="inspector-option-head"><b>زر ${index+1}</b><button class="delete-bot-option">×</button></div><input class="inspect-option-label" value="${escapeHtml(option.label||'')}" placeholder="عنوان الزر"><input class="inspect-option-aliases" value="${escapeHtml((option.aliases||[]).join('، '))}" placeholder="كلمات بديلة: 1، بغداد"><select class="inspect-option-next">${allTargetOptions(node.id,option.next)}</select></div>`).join('')}<button id="add-bot-option" class="ghost" ${(node.options||[]).length>=3?'disabled':''}>＋ إضافة زر</button></div>`:'';
-  pane.innerHTML=`<div class="inspector-heading"><div><span class="inspector-type">${nodeMeta[node.type].icon} ${nodeMeta[node.type].label}</span><h3>خصائص العقدة</h3></div><button id="close-inspector" title="إغلاق">×</button></div><label>معرّف العقدة<input class="node-id-field" value="${escapeHtml(node.id)}" disabled></label>${messageField}${fieldField}${nextField}${optionFields}<div class="inspector-actions">${node.type!=='start'?'<button id="delete-bot-node" class="ghost danger">حذف</button>':''}<button id="duplicate-bot-node" class="ghost">▣ نسخ</button></div>`;
+  const carouselFields=node.type==='carousel'?`<div class="carousel-settings"><label>اسم القالب المعتمد في Meta<input id="inspect-template-name" dir="ltr" value="${escapeHtml(node.templateName||'')}" placeholder="products_carousel"></label><label>لغة القالب<input id="inspect-language-code" dir="ltr" value="${escapeHtml(node.languageCode||'ar')}" placeholder="ar"></label><label>قيمة متغير الرسالة الرئيسية <small>(اختياري)</small><input id="inspect-carousel-body" value="${escapeHtml(node.bodyValue||'')}" placeholder="مثال: عروض هذا الأسبوع"></label><p class="carousel-note">يجب أن يكون القالب في Meta من نوع Carousel: رأس صورة، متغير نص واحد، وزر رابط واحد لكل بطاقة.</p><div class="carousel-cards">${(node.cards||[]).map((card,index)=>`<div class="carousel-card-editor" data-card-index="${index}"><div class="inspector-option-head"><b>بطاقة ${index+1}</b><button class="delete-carousel-card">×</button></div><label>رابط الصورة العام HTTPS<input class="inspect-card-image" dir="ltr" value="${escapeHtml(card.imageUrl||'')}" placeholder="https://example.com/product.jpg"></label><label>نص/اسم المنتج<input class="inspect-card-body" value="${escapeHtml(card.bodyValue||'')}" placeholder="اسم المنتج"></label><label>الجزء المتغير من رابط الزر <small>(اختياري)</small><input class="inspect-card-button" dir="ltr" value="${escapeHtml(card.buttonValue||'')}" placeholder="product/123"></label></div>`).join('')}</div><button id="add-carousel-card" class="ghost" ${(node.cards||[]).length>=10?'disabled':''}>＋ إضافة بطاقة</button></div>`:'';
+  pane.innerHTML=`<div class="inspector-heading"><div><span class="inspector-type">${nodeMeta[node.type].icon} ${nodeMeta[node.type].label}</span><h3>خصائص العقدة</h3></div><button id="close-inspector" title="إغلاق">×</button></div><label>معرّف العقدة<input class="node-id-field" value="${escapeHtml(node.id)}" disabled></label>${messageField}${fieldField}${nextField}${optionFields}${carouselFields}<div class="inspector-actions">${node.type!=='start'?'<button id="delete-bot-node" class="ghost danger">حذف</button>':''}<button id="duplicate-bot-node" class="ghost">▣ نسخ</button></div>`;
   $('#close-inspector',pane).onclick=()=>{selectedNodeId=null;renderBotFlow();};
   $('#inspect-message',pane)?.addEventListener('input',e=>{node.message=e.target.value;updateSelectedCard(node);markFlowDirty();});
   $('#inspect-field',pane)?.addEventListener('input',e=>{node.field=e.target.value;markFlowDirty();});
   $('#inspect-next',pane)?.addEventListener('change',e=>{node.next=e.target.value||null;drawFlowLines();markFlowDirty();});
   $$('.inspector-option',pane).forEach(row=>{const option=node.options[Number(row.dataset.optionIndex)];$('.inspect-option-label',row).oninput=e=>{option.label=e.target.value;updateSelectedCard(node);markFlowDirty();};$('.inspect-option-aliases',row).oninput=e=>{option.aliases=e.target.value.split(/[،,]/).map(x=>x.trim()).filter(Boolean);markFlowDirty();};$('.inspect-option-next',row).onchange=e=>{option.next=e.target.value||null;drawFlowLines();markFlowDirty();};$('.delete-bot-option',row).onclick=()=>{node.options.splice(Number(row.dataset.optionIndex),1);renderBotFlow();markFlowDirty();};});
   $('#add-bot-option',pane)?.addEventListener('click',()=>{if((node.options||[]).length<3){node.options.push({id:newId('option'),label:`زر ${node.options.length+1}`,aliases:[],next:null});renderBotFlow();markFlowDirty();}});
+  $('#inspect-template-name',pane)?.addEventListener('input',e=>{node.templateName=e.target.value.trim();updateSelectedCard(node);markFlowDirty();});
+  $('#inspect-language-code',pane)?.addEventListener('input',e=>{node.languageCode=e.target.value.trim();markFlowDirty();});
+  $('#inspect-carousel-body',pane)?.addEventListener('input',e=>{node.bodyValue=e.target.value;markFlowDirty();});
+  $$('.carousel-card-editor',pane).forEach(row=>{const card=node.cards[Number(row.dataset.cardIndex)];$('.inspect-card-image',row).oninput=e=>{card.imageUrl=e.target.value.trim();markFlowDirty();};$('.inspect-card-body',row).oninput=e=>{card.bodyValue=e.target.value;markFlowDirty();};$('.inspect-card-button',row).oninput=e=>{card.buttonValue=e.target.value.trim();markFlowDirty();};$('.delete-carousel-card',row).onclick=()=>{if(node.cards.length<=2)return toast('يجب إبقاء بطاقتين على الأقل');node.cards.splice(Number(row.dataset.cardIndex),1);renderBotFlow();markFlowDirty();};});
+  $('#add-carousel-card',pane)?.addEventListener('click',()=>{if((node.cards||[]).length<10){node.cards.push({imageUrl:'',bodyValue:`المنتج ${node.cards.length+1}`,buttonValue:''});renderBotFlow();markFlowDirty();}});
   $('#delete-bot-node',pane)?.addEventListener('click',()=>deleteBotNode(node.id));
   $('#duplicate-bot-node',pane)?.addEventListener('click',()=>{const copy=structuredClone(node);copy.id=newId(copy.type);copy.x=(node.x||0)+40;copy.y=(node.y||0)+60;if(copy.type==='start')copy.type='message';botFlow.nodes.push(copy);selectedNodeId=copy.id;renderBotFlow();markFlowDirty();});
 }
@@ -340,6 +347,7 @@ function addBotNode(type){
   if(type==='input')Object.assign(node,{message:'اكتب إجابتك:',field:'الإجابة'});
   if(type==='phone')Object.assign(node,{message:'يرجى كتابة رقم الهاتف:',field:'رقم الهاتف'});
   if(type==='buttons')Object.assign(node,{message:'اختر من القائمة:',field:'الاختيار',options:[{id:newId('option'),label:'الخيار الأول',aliases:['1'],next:null},{id:newId('option'),label:'الخيار الثاني',aliases:['2'],next:null}]});
+  if(type==='carousel')Object.assign(node,{message:'منتجاتنا',templateName:'',languageCode:'ar',bodyValue:'',cards:[{imageUrl:'',bodyValue:'المنتج الأول',buttonValue:''},{imageUrl:'',bodyValue:'المنتج الثاني',buttonValue:''}]});
   if(type==='end')node.message='تم تسجيل معلوماتك بنجاح ✅';
   botFlow.nodes.push(node); selectedNodeId=node.id;renderBotFlow();markFlowDirty();
 }
@@ -359,12 +367,13 @@ $('#bot-save').onclick=()=>saveBotFlow(false).catch(e=>toast(e.message));
 $('#bot-publish').onclick=()=>saveBotFlow(true).catch(e=>toast(e.message));
 
 function exportBotJson(){
-  const typeMap={start:'start',message:'text',input:'input_text',phone:'phone',buttons:'buttons',end:'end'};
+  const typeMap={start:'start',message:'text',input:'input_text',phone:'phone',buttons:'buttons',carousel:'carousel',end:'end'};
   const blocks=botFlow.nodes.map(node=>{
     const data={uid:node.id};
     if(node.type==='message'||node.type==='end')data.text=node.message||'';
     if(node.type==='input'||node.type==='phone')Object.assign(data,{question:node.message||'',variable:node.field||'',required:'true',button_label:'إرسال'});
     if(node.type==='buttons')Object.assign(data,{text:node.message||'',options:(node.options||[]).map(o=>o.label).join(','),variable:node.field||''});
+    if(node.type==='carousel')Object.assign(data,{text:node.message||'',template_name:node.templateName||'',language_code:node.languageCode||'ar',body_value:node.bodyValue||'',cards:node.cards||[]});
     return {id:node.id,bot_id:'local',type:typeMap[node.type],data:JSON.stringify(data),pos_x:String(Math.round(node.x||0)),pos_y:String(Math.round(node.y||0)),created_at:new Date().toISOString()};
   });
   const edges=[];
@@ -377,7 +386,7 @@ function exportBotJson(){
 }
 function importBotJson(payload){
   if(!payload||!Array.isArray(payload.blocks)||!Array.isArray(payload.edges))throw new Error('ملف JSON لا يحتوي blocks و edges');
-  const typeMap={start:'start',text:'message',input_text:'input',phone:'phone',input_phone:'phone',buttons:'buttons',end:'end'};
+  const typeMap={start:'start',text:'message',input_text:'input',phone:'phone',input_phone:'phone',buttons:'buttons',carousel:'carousel',end:'end'};
   const nodes=payload.blocks.map((block,index)=>{
     const type=typeMap[block.type];if(!type)return null;
     let data={};try{data=typeof block.data==='string'?JSON.parse(block.data):block.data||{};}catch{throw new Error(`بيانات العقدة ${block.id} غير صالحة`);}
@@ -385,6 +394,7 @@ function importBotJson(payload){
     if(type==='message'||type==='end')node.message=data.text||'';
     if(type==='input'||type==='phone')Object.assign(node,{message:data.question||data.text||'',field:data.variable||'الإجابة'});
     if(type==='buttons')Object.assign(node,{message:data.text||data.question||'',field:data.variable||'الاختيار',options:String(data.options||'').split(',').map((label,i)=>({id:newId('option'),label:label.trim()||`زر ${i+1}`,aliases:[String(i+1)],next:null})).filter(o=>o.label)});
+    if(type==='carousel')Object.assign(node,{message:data.text||'منتجاتنا',templateName:data.template_name||'',languageCode:data.language_code||'ar',bodyValue:data.body_value||'',cards:Array.isArray(data.cards)&&data.cards.length>=2?data.cards:[{imageUrl:'',bodyValue:'المنتج الأول',buttonValue:''},{imageUrl:'',bodyValue:'المنتج الثاني',buttonValue:''}]});
     return node;
   }).filter(Boolean);
   const byId=new Map(nodes.map(node=>[node.id,node]));
@@ -398,7 +408,8 @@ $('#bot-import-file').onchange=async event=>{const file=event.target.files?.[0];
 
 function interpolatePreview(text,answers){return String(text||'').replace(/\{\{\s*([^}]+?)\s*\}\}/g,(_m,k)=>answers[k]??'');}
 function previewBubble(text,who,options=[]){const div=document.createElement('div');div.className=`bubble ${who}`;div.append(document.createTextNode(text));for(const option of options){const button=document.createElement('button');button.className='preview-choice';button.textContent=option.label;button.onclick=()=>previewSubmit(option.label);div.append(button);}$('#bot-preview-chat').append(div);$('#bot-preview-chat').scrollTop=$('#bot-preview-chat').scrollHeight;}
-function previewAdvance(nodeId){let guard=0;while(nodeId&&guard++<100){const node=getBotNode(nodeId);if(!node)return;if(node.type==='start'){nodeId=node.next;continue;}if(node.type==='message'){previewBubble(interpolatePreview(node.message,previewState.answers),'bot');nodeId=node.next;continue;}if(['input','phone','buttons'].includes(node.type)){previewState.nodeId=node.id;previewBubble(interpolatePreview(node.message,previewState.answers),'bot',node.type==='buttons'?(node.options||[]):[]);return;}if(node.type==='end'){previewBubble(interpolatePreview(node.message,previewState.answers),'bot');previewState.nodeId=null;return;}nodeId=node.next;}}
+function previewCarousel(node){const wrapper=document.createElement('div');wrapper.className='preview-carousel';const title=document.createElement('b');title.textContent=node.message||'منتجاتنا';wrapper.append(title);const track=document.createElement('div');track.className='preview-carousel-track';for(const card of node.cards||[]){const item=document.createElement('div');item.className='preview-carousel-card';if(card.imageUrl){const img=document.createElement('img');img.src=card.imageUrl;img.alt=card.bodyValue||'منتج';item.append(img);}const text=document.createElement('span');text.textContent=interpolatePreview(card.bodyValue,previewState.answers)||'اسم المنتج';item.append(text);const button=document.createElement('button');button.textContent='عرض التفاصيل';button.disabled=true;item.append(button);track.append(item);}wrapper.append(track);$('#bot-preview-chat').append(wrapper);}
+function previewAdvance(nodeId){let guard=0;while(nodeId&&guard++<100){const node=getBotNode(nodeId);if(!node)return;if(node.type==='start'){nodeId=node.next;continue;}if(node.type==='message'){previewBubble(interpolatePreview(node.message,previewState.answers),'bot');nodeId=node.next;continue;}if(node.type==='carousel'){previewCarousel(node);nodeId=node.next;continue;}if(['input','phone','buttons'].includes(node.type)){previewState.nodeId=node.id;previewBubble(interpolatePreview(node.message,previewState.answers),'bot',node.type==='buttons'?(node.options||[]):[]);return;}if(node.type==='end'){previewBubble(interpolatePreview(node.message,previewState.answers),'bot');previewState.nodeId=null;return;}nodeId=node.next;}}
 function startBotPreview(){$('#bot-preview-chat').innerHTML='';previewState={answers:{},nodeId:null};previewAdvance(botFlow.nodes.find(n=>n.type==='start')?.id);}
 function previewSubmit(text){if(!text||!previewState)return;previewBubble(text,'user');const node=getBotNode(previewState.nodeId);if(!node)return;let next=node.next,value=text;if(node.type==='buttons'){const normalized=text.trim().toLowerCase();const option=(node.options||[]).find((o,i)=>[o.label,String(i+1),...(o.aliases||[])].some(a=>String(a).trim().toLowerCase()===normalized));if(!option){previewBubble('الاختيار غير صحيح، حاول مرة أخرى.','bot',node.options||[]);return;}value=option.label;next=option.next||node.next;}if(node.type==='phone'&&text.replace(/\D/g,'').length<8){previewBubble('يرجى إدخال رقم هاتف صحيح.','bot');return;}previewState.answers[node.field||node.id]=value;previewAdvance(next);}
 $('#bot-preview').onclick=()=>{$('#bot-preview-modal').hidden=false;startBotPreview();};
