@@ -8,14 +8,19 @@ import {
 } from './store.js';
 import { processMessage } from './conversation.js';
 import { getWhatsAppStatus, logoutWhatsApp, startWhatsApp, stopWhatsApp } from './whatsapp.js';
+import {
+  getCloudSettings, handleCloudWebhook, saveCloudSettings, testCloudConnection,
+  validateCloudSignature, verifyCloudWebhook
+} from './cloud-api.js';
 
 const app = express();
+app.set('trust proxy', 1);
 const port = Number(process.env.PORT || 3000);
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const authAttempts = new Map();
 
 await initStore();
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '1mb', verify: (req, _res, buffer) => { req.rawBody = Buffer.from(buffer); } }));
 app.use(express.static(path.join(root, 'public')));
 
 const publicAccount = (account) => {
@@ -53,6 +58,19 @@ function requireSystemAdmin(req, res, next) {
 }
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
+
+app.get('/api/meta/webhook/:accountId', async (req, res) => {
+  const challenge = await verifyCloudWebhook(req.params.accountId, req.query['hub.mode'], req.query['hub.verify_token'], req.query['hub.challenge']);
+  if (challenge == null) return res.sendStatus(403);
+  res.status(200).send(String(challenge));
+});
+app.post('/api/meta/webhook/:accountId', async (req, res) => {
+  try {
+    if (!(await validateCloudSignature(req.params.accountId, req.rawBody || Buffer.from(''), req.headers['x-hub-signature-256']))) return res.sendStatus(401);
+    res.sendStatus(200);
+    handleCloudWebhook(req.params.accountId, req.body).catch((error) => console.error('Meta webhook processing failed', error));
+  } catch (error) { console.error('Meta webhook rejected', error); res.sendStatus(400); }
+});
 app.post('/api/auth/signup', async (req, res) => {
   if (limited(req, 'signup', 8)) return res.status(429).json({ error: 'محاولات كثيرة، حاول لاحقاً' });
   const { fullName, username, email, whatsapp, password, confirmPassword } = req.body || {};
@@ -86,8 +104,23 @@ app.post('/api/auth/logout', async (req, res) => { await destroySession(req, res
 app.get('/api/auth/me', requireUser, (req, res) => res.json({ account: publicAccount(req.account), adminWhatsapp: process.env.ADMIN_WHATSAPP || '' }));
 
 app.get('/api/status', requireUser, requireAccess, async (req, res) => {
+  const cloud = await getCloudSettings(req.account.id);
+  if (cloud.enabled && cloud.configured) return res.json({ state: cloud.verified ? 'connected' : 'error', phone: cloud.displayPhone, error: cloud.verified ? null : 'احفظ البيانات واضغط اختبار الاتصال', mode: 'cloud', provider: 'cloud' });
   await startWhatsApp(req.account.id);
-  res.json({ ...getWhatsAppStatus(req.account.id), mode: process.env.MODE || 'demo' });
+  res.json({ ...getWhatsAppStatus(req.account.id), mode: process.env.MODE || 'demo', provider: 'qr' });
+});
+app.get('/api/cloud/settings', requireUser, requireAccess, async (req, res) => res.json(await getCloudSettings(req.account.id, `${req.protocol}://${req.get('host')}`)));
+app.put('/api/cloud/settings', requireUser, requireAccess, async (req, res) => {
+  try {
+    const settings = await saveCloudSettings(req.account.id, req.body || {}, `${req.protocol}://${req.get('host')}`);
+    if (settings.enabled) await stopWhatsApp(req.account.id);
+    res.json(settings);
+  }
+  catch (error) { res.status(400).json({ error: error.message }); }
+});
+app.post('/api/cloud/test', requireUser, requireAccess, async (req, res) => {
+  try { res.json(await testCloudConnection(req.account.id, `${req.protocol}://${req.get('host')}`)); }
+  catch (error) { res.status(400).json({ error: error.message }); }
 });
 app.get('/api/config', requireUser, requireAccess, async (req, res) => res.json(await getConfig(req.account.id)));
 app.put('/api/config', requireUser, requireAccess, async (req, res) => {

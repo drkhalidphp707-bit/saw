@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "check": "node --check src/server.js && node --check src/auth.js && node --check src/database.js && node --check src/whatsapp.js && node --check src/store.js && node --check src/conversation.js && node --check public/app.js && node --check public/auth.js && node --check public/admin.js"
+    "check": "node --check src/server.js && node --check src/auth.js && node --check src/database.js && node --check src/whatsapp.js && node --check src/cloud-api.js && node --check src/store.js && node --check src/conversation.js && node --check public/app.js && node --check public/auth.js && node --check public/admin.js"
   },
   "engines": {
     "node": ">=20"

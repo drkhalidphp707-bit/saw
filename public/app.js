@@ -10,6 +10,7 @@ let previewState = null;
 let flowZoom = 1;
 let account = null;
 let adminWhatsapp = '';
+let cloudSettings = null;
 
 async function api(url, options = {}) {
   const response = await fetch(url, { ...options, headers: { 'Content-Type': 'application/json', ...(options.headers || {}) } });
@@ -42,9 +43,9 @@ async function load() {
   renderAccount();
   if (!account.access.allowed) { showLockedAccount(); return; }
   let flowResponse;
-  [config, customers, flowResponse] = await Promise.all([api('/api/config'), api('/api/customers'), api('/api/bot-flow')]);
+  [config, customers, flowResponse, cloudSettings] = await Promise.all([api('/api/config'), api('/api/customers'), api('/api/bot-flow'), api('/api/cloud/settings')]);
   botFlow = flowResponse.draft || createDefaultBotFlow();
-  fillConfig(); renderSteps(); renderCustomers(); renderBotFlow(); await refreshStatus();
+  fillConfig(); fillCloudSettings(); renderSteps(); renderCustomers(); renderBotFlow(); await refreshStatus();
 }
 
 function renderAccount() {
@@ -75,6 +76,25 @@ function fillConfig() {
   $('#complete').value = config.completionText || '';
   $('#fallback').value = config.fallbackText || '';
   $('#bot-state').textContent = config.enabled ? 'مفعّل' : 'متوقف';
+}
+
+function fillCloudSettings() {
+  if (!cloudSettings) return;
+  $('#cloud-phone-id').value = cloudSettings.phoneNumberId || '';
+  $('#cloud-waba-id').value = cloudSettings.businessAccountId || '';
+  $('#cloud-version').value = cloudSettings.apiVersion || 'v25.0';
+  $('#cloud-enabled').checked = !!cloudSettings.enabled;
+  $('#cloud-token').value = '';
+  $('#cloud-app-secret').value = '';
+  $('#cloud-webhook').value = cloudSettings.webhookUrl || '';
+  $('#cloud-verify-token').value = cloudSettings.verifyToken || '';
+  const connected = cloudSettings.configured && cloudSettings.enabled && cloudSettings.verified;
+  $('#cloud-state').textContent = connected ? 'متصل رسمياً' : cloudSettings.configured && cloudSettings.enabled ? 'بانتظار الاختبار' : cloudSettings.configured ? 'محفوظ — غير مفعّل' : 'غير مربوط';
+  $('#cloud-state').className = `cloud-badge ${connected ? 'good' : ''}`;
+  if (cloudSettings.displayPhone || cloudSettings.verifiedName) {
+    $('#cloud-result').textContent = `متصل: ${cloudSettings.verifiedName || 'WhatsApp Business'} ${cloudSettings.displayPhone || ''}`;
+    $('#cloud-result').className = 'cloud-result good';
+  }
 }
 
 function renderSteps() {
@@ -113,12 +133,12 @@ function renderCustomers() {
 async function refreshStatus() {
   try {
     const status = await api('/api/status');
-    const labels = { connected:'متصل', qr:'امسح رمز QR', connecting:'جاري الاتصال', disconnected:'غير متصل', demo:'وضع تجريبي', error:'خطأ بالاتصال' };
+    const labels = { connected: status.provider === 'cloud' ? 'Cloud API متصل' : 'متصل', qr:'امسح رمز QR', connecting:'جاري الاتصال', disconnected:'غير متصل', demo:'وضع تجريبي', error:'خطأ بالاتصال' };
     $('#connection-text').textContent = labels[status.state] || status.state;
     $('#phone-text').textContent = status.phone || (status.mode === 'demo' ? 'غيّر MODE إلى whatsapp عند النشر' : status.lastMessageAt ? `آخر رسالة: ${new Date(status.lastMessageAt).toLocaleTimeString('ar-IQ')}` : 'بانتظار أول رسالة');
     $('#top-status').textContent = labels[status.state] || status.state;
     $('#top-status').className = `status-pill ${status.state === 'connected' ? 'good' : status.state === 'error' ? 'bad' : ''}`;
-    $('#qr-box').innerHTML = status.qr ? `<img src="${status.qr}" alt="رمز ربط واتساب"><p>واتساب ← الأجهزة المرتبطة ← ربط جهاز</p>` : `<div class="qr-placeholder">${status.state === 'connected' ? '✓' : status.state === 'demo' ? 'DEMO' : 'QR'}</div><p>${status.error || (status.state === 'connected' ? 'تم ربط واتساب بنجاح' : status.state === 'demo' ? 'الوضع التجريبي مفعّل' : 'بانتظار رمز الربط…')}</p>`;
+    $('#qr-box').innerHTML = status.qr ? `<img src="${status.qr}" alt="رمز ربط واتساب"><p>واتساب ← الأجهزة المرتبطة ← ربط جهاز</p>` : `<div class="qr-placeholder">${status.state === 'connected' ? '✓' : status.state === 'demo' ? 'DEMO' : 'QR'}</div><p>${status.error || (status.provider === 'cloud' ? 'الاتصال الرسمي من Meta مفعّل' : status.state === 'connected' ? 'تم ربط واتساب بنجاح' : status.state === 'demo' ? 'الوضع التجريبي مفعّل' : 'بانتظار رمز الربط…')}</p>`;
   } catch (error) { console.error(error); }
 }
 
@@ -129,6 +149,7 @@ $$('.nav').forEach(button => button.onclick = () => {
   document.body.classList.toggle('bot-focus', button.dataset.page === 'bot');
   document.body.classList.remove('bot-nav-open');
   if (button.dataset.page === 'customers') api('/api/customers').then(x => { customers=x; renderCustomers(); });
+  if (button.dataset.page === 'cloud') api('/api/cloud/settings').then(x => { cloudSettings=x; fillCloudSettings(); });
   if (button.dataset.page === 'bot') renderBotFlow();
 });
 $('#menu').onclick = () => document.body.classList.contains('bot-focus') ? document.body.classList.toggle('bot-nav-open') : $('.sidebar').classList.toggle('open');
@@ -153,6 +174,29 @@ async function saveConfig() {
 $('#save-quick').onclick = saveConfig;
 $('#save-flow').onclick = saveConfig;
 $('#logout').onclick = async () => { if (confirm('هل تريد فصل رقم واتساب؟ ستحتاج لمسح QR مرة أخرى.')) { await api('/api/logout',{method:'POST'}); toast('تم فصل الرقم'); setTimeout(refreshStatus,700); } };
+
+$('#save-cloud').onclick = async () => {
+  try {
+    cloudSettings = await api('/api/cloud/settings', { method:'PUT', body:JSON.stringify({
+      phoneNumberId: $('#cloud-phone-id').value.trim(), businessAccountId: $('#cloud-waba-id').value.trim(),
+      accessToken: $('#cloud-token').value.trim(), appSecret: $('#cloud-app-secret').value.trim(),
+      apiVersion: $('#cloud-version').value.trim(), enabled: $('#cloud-enabled').checked
+    }) });
+    fillCloudSettings(); await refreshStatus(); toast('تم حفظ اتصال Meta بشكل مشفّر');
+  } catch (error) { $('#cloud-result').textContent = error.message; $('#cloud-result').className='cloud-result bad'; }
+};
+$('#test-cloud').onclick = async () => {
+  $('#cloud-result').textContent='جاري الاتصال بـ Meta…'; $('#cloud-result').className='cloud-result';
+  try {
+    cloudSettings = await api('/api/cloud/test', { method:'POST' }); fillCloudSettings();
+    $('#cloud-result').textContent=`نجح الاتصال ✅ ${cloudSettings.verifiedName || ''} ${cloudSettings.displayPhone || ''}`;
+    $('#cloud-result').className='cloud-result good'; await refreshStatus();
+  } catch (error) { $('#cloud-result').textContent=`فشل الاتصال: ${error.message}`; $('#cloud-result').className='cloud-result bad'; }
+};
+$$('[data-copy]').forEach(button => button.onclick = async () => {
+  const value = $(`#${button.dataset.copy}`).value; if (!value) return toast('احفظ الاتصال أولاً');
+  await navigator.clipboard.writeText(value); toast('تم النسخ');
+});
 
 function bubble(reply, who) { const text=typeof reply==='string'?reply:reply?.text||'';const div=document.createElement('div');div.className=`bubble ${who}`;div.append(document.createTextNode(text));if(reply?.buttons?.length){for(const option of reply.buttons){const button=document.createElement('button');button.className='preview-choice';button.textContent=option.label;button.onclick=()=>sendTest(option.id||option.label);div.append(button);}}const time=document.createElement('time');time.textContent=new Date().toLocaleTimeString('ar-IQ',{hour:'2-digit',minute:'2-digit'});div.append(time);$('#chat').append(div);$('#chat').scrollTop=$('#chat').scrollHeight;}
 async function sendTest(text) { bubble(text,'user'); const data=await api('/api/simulate',{method:'POST',body:JSON.stringify({sender:testId,text})}); for (const reply of data.replies) { await new Promise(r=>setTimeout(r,300)); bubble(reply,'bot'); } }

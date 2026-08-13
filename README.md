@@ -28,10 +28,23 @@ npm start
    - `DATABASE_URL`: رابط PostgreSQL الذي يوفره Railway.
    - `MODE=whatsapp`: لتفعيل الربط الحقيقي.
    - `DATA_DIR=/data`: مسار الحفظ الدائم (اختياري؛ التطبيق يقرأ مسار الـ Volume تلقائياً أيضاً).
+   - `CREDENTIALS_ENCRYPTION_KEY`: مفتاح عشوائي ثابت لتشفير Access Tokens الخاصة بحسابات Meta. أنشئه مرة واحدة بالأمر `openssl rand -hex 32` ولا تغيّره بعد حفظ الاتصالات.
+   - `META_GRAPH_VERSION=v25.0`: إصدار Graph API المستخدم افتراضياً ويمكن تغييره من صفحة الاتصال.
 3. أضف PostgreSQL إلى مشروع Railway واربط متغير `DATABASE_URL` بخدمة الموقع.
 4. أضف Railway Volume واربطه بالمسار `/data` لحفظ مفاتيح ربط واتساب.
 5. افتح `/auth.html` وسجل حساباً، ثم امسح QR من واتساب: الإعدادات ← الأجهزة المرتبطة ← ربط جهاز.
 6. افتح `/admin.html` لتفعيل حساب، تمديد تجربته 3 أيام، أو إيقافه.
+
+## ربط WhatsApp Cloud API الرسمي
+
+1. أنشئ تطبيقاً من [Meta for Developers](https://developers.facebook.com/) وأضف منتج WhatsApp.
+2. استخرج `Phone Number ID` ويفضل إنشاء `Permanent Access Token` من System Users بدلاً من الرمز المؤقت.
+3. افتح قسم **Cloud API** في لوحة الموقع وأدخل `Phone Number ID` و`Access Token` و`App Secret`، ثم احفظ.
+4. انسخ `Callback URL` و`Verify Token` الظاهرين في اللوحة إلى WhatsApp → Configuration داخل تطبيق Meta.
+5. اشترك في حقل `messages`، ثم اضغط **اختبار الاتصال** في الموقع.
+6. فعّل **استخدام Cloud API**. عندها تُرسل اختيارات البوت كأزرار رسمية حتى 3 خيارات، أو قائمة رسمية عند وجود خيارات أكثر.
+
+لا يظهر `Access Token` أو `App Secret` مرة أخرى بعد حفظهما، ويتم تشفيرهما قبل التخزين. يجب إبقاء `CREDENTIALS_ENCRYPTION_KEY` ثابتاً؛ تغييره يجعل البيانات المشفرة القديمة غير قابلة للقراءة.
 
 الحسابات والإعدادات والعملاء محفوظون في PostgreSQL. يبقى الـVolume ضرورياً فقط لمفاتيح جلسات واتساب لكل حساب.
 

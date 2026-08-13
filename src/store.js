@@ -18,7 +18,7 @@ export const defaultConfig = {
 
 async function readJson(file, fallback) { try { return JSON.parse(await fs.readFile(file, 'utf8')); } catch (error) { if (error.code !== 'ENOENT') console.error(`Failed to read ${file}`, error); return structuredClone(fallback); } }
 async function writeJson(file, value) { await fs.mkdir(path.dirname(file), { recursive: true }); const temp = `${file}.${crypto.randomUUID()}.tmp`; await fs.writeFile(temp, JSON.stringify(value, null, 2)); await fs.rename(temp, file); }
-const tenantFiles = (accountId) => { if (!/^[a-zA-Z0-9-]+$/.test(String(accountId))) throw new Error('Invalid account id'); const dir = path.join(tenantsDir, String(accountId)); return { dir, config:path.join(dir,'config.json'), customers:path.join(dir,'customers.json'), sessions:path.join(dir,'sessions.json'), auth:path.join(dir,'whatsapp-auth') }; };
+const tenantFiles = (accountId) => { if (!/^[a-zA-Z0-9-]+$/.test(String(accountId))) throw new Error('Invalid account id'); const dir = path.join(tenantsDir, String(accountId)); return { dir, config:path.join(dir,'config.json'), customers:path.join(dir,'customers.json'), sessions:path.join(dir,'sessions.json'), cloud:path.join(dir,'cloud.json'), auth:path.join(dir,'whatsapp-auth') }; };
 
 const getDocument = async (accountId, kind, fallback) => {
   if (!databaseEnabled) return readJson(tenantFiles(accountId)[kind], fallback);
@@ -76,5 +76,6 @@ export async function deleteAppSession(tokenHash) { if(!databaseEnabled){const s
 export const getConfig=(id)=>getDocument(id,'config',defaultConfig); export const saveConfig=(id,data)=>saveDocument(id,'config',data);
 export const getCustomers=(id)=>getDocument(id,'customers',[]); export const saveCustomers=(id,data)=>saveDocument(id,'customers',data);
 export const getSessions=(id)=>getDocument(id,'sessions',{}); export const saveSessions=(id,data)=>saveDocument(id,'sessions',data);
+export const getCloudDocument=(id)=>getDocument(id,'cloud',null); export const saveCloudDocument=(id,data)=>saveDocument(id,'cloud',data);
 export const authDirFor=(id)=>tenantFiles(id).auth; export const resetAllSessions=(id)=>saveSessions(id,{});
 export function accountAccess(account){if(!account)return{allowed:false,state:'missing',daysLeft:0};if(account.status==='active')return{allowed:true,state:'active',daysLeft:null};if(account.status==='suspended')return{allowed:false,state:'suspended',daysLeft:0};const remaining=new Date(account.trialEndsAt).getTime()-Date.now();return{allowed:remaining>0,state:remaining>0?'trial':'expired',daysLeft:Math.max(0,Math.ceil(remaining/86400000))};}

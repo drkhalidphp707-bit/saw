@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>لوحة المساعد الآلي</title>
-  <link rel="stylesheet" href="/style.css?v=20260812-3" />
+  <link rel="stylesheet" href="/style.css?v=20260813-1" />
 </head>
 <body>
   <aside class="sidebar">
@@ -13,6 +13,7 @@
       <button class="nav active" data-page="home">⌂ <span>الرئيسية</span></button>
       <button class="nav" data-page="flow">☷ <span>مسار الردود</span></button>
       <button class="nav" data-page="customers">♙ <span>الزبائن</span></button>
+      <button class="nav" data-page="cloud">◉ <span>Cloud API</span></button>
       <button class="nav" data-page="bot">⌘ <span>Bot</span></button>
       <button class="nav" data-page="test">◁ <span>تجربة البوت</span></button>
     </nav>
@@ -34,6 +35,29 @@
       <div class="grid-2">
         <article class="card qr-card"><div class="card-head"><div><h2>ربط واتساب</h2><p>امسح الرمز من الأجهزة المرتبطة في واتساب</p></div><i class="dot"></i></div><div id="qr-box" class="qr-box"><div class="qr-placeholder">QR</div><p>بانتظار رمز الربط…</p></div><button id="logout" class="danger ghost">فصل الرقم وإظهار QR جديد</button></article>
         <article class="card"><div class="card-head"><div><h2>الإعدادات السريعة</h2><p>اسم البوت وتشغيل الرد التلقائي</p></div></div><label>اسم المساعد<input id="bot-name" /></label><label class="switch-row"><span><b>الرد التلقائي</b><small>الرد على الرسائل الجديدة</small></span><input id="enabled" type="checkbox" /></label><button id="save-quick" class="primary">حفظ الإعدادات</button></article>
+      </div>
+    </section>
+
+    <section class="page" id="cloud">
+      <div class="section-title"><div><h2>WhatsApp Cloud API</h2><p>الربط الرسمي من Meta لإرسال الأزرار والقوائم واستقبال الرسائل</p></div><span id="cloud-state" class="cloud-badge">غير مربوط</span></div>
+      <div class="cloud-grid">
+        <article class="card cloud-form-card">
+          <div class="card-head"><div><h2>بيانات تطبيق Meta</h2><p>تُحفظ رموز الدخول مشفّرة ولا تظهر مرة أخرى</p></div></div>
+          <label>Phone Number ID<input id="cloud-phone-id" dir="ltr" placeholder="123456789012345"></label>
+          <label>WhatsApp Business Account ID <small>(اختياري)</small><input id="cloud-waba-id" dir="ltr" placeholder="123456789012345"></label>
+          <label>Permanent Access Token<input id="cloud-token" type="password" dir="ltr" autocomplete="new-password" placeholder="اتركه فارغاً للاحتفاظ بالرمز المحفوظ"></label>
+          <label>App Secret <small>(مستحسن لحماية Webhook)</small><input id="cloud-app-secret" type="password" dir="ltr" autocomplete="new-password" placeholder="اتركه فارغاً للاحتفاظ بالقيمة المحفوظة"></label>
+          <label>Graph API Version<input id="cloud-version" dir="ltr" value="v25.0"></label>
+          <label class="switch-row"><span><b>استخدام Cloud API</b><small>عند تفعيله يتوقف إنشاء اتصال QR لهذا الحساب</small></span><input id="cloud-enabled" type="checkbox"></label>
+          <div class="cloud-actions"><button id="save-cloud" class="primary">حفظ الاتصال</button><button id="test-cloud" class="ghost">اختبار الاتصال</button></div>
+        </article>
+        <article class="card webhook-card">
+          <div class="card-head"><div><h2>إعداد Webhook في Meta</h2><p>انسخ القيمتين إلى إعدادات WhatsApp في تطبيق Meta</p></div></div>
+          <label>Callback URL<div class="copy-field"><input id="cloud-webhook" dir="ltr" readonly><button data-copy="cloud-webhook">نسخ</button></div></label>
+          <label>Verify Token<div class="copy-field"><input id="cloud-verify-token" dir="ltr" readonly><button data-copy="cloud-verify-token">نسخ</button></div></label>
+          <div class="cloud-steps"><b>بعد الحفظ:</b><ol><li>افتح Meta Developers ← WhatsApp ← Configuration.</li><li>ضع Callback URL وVerify Token ثم اضغط Verify and save.</li><li>فعّل الاشتراك بحقل <code>messages</code>.</li><li>ارجع واضغط «اختبار الاتصال».</li></ol></div>
+          <div id="cloud-result" class="cloud-result">أدخل البيانات واحفظها أولاً.</div>
+        </article>
       </div>
     </section>
 
@@ -88,6 +112,6 @@
     <div class="preview-dialog"><button id="close-bot-preview" class="preview-close">×</button><div class="phone"><div class="phone-head"><span class="avatar">و</span><div><b>معاينة البوت</b><small>المسودة الحالية</small></div></div><div class="chat" id="bot-preview-chat"></div><form id="bot-preview-form"><input id="bot-preview-input" autocomplete="off" placeholder="اكتب رسالة…"><button>إرسال</button></form></div><button id="restart-bot-preview" class="ghost">إعادة التجربة</button></div>
   </div>
   <div id="toast"></div>
-  <script src="/app.js?v=20260812-3" type="module"></script>
+  <script src="/app.js?v=20260813-1" type="module"></script>
 </body>
 </html>
