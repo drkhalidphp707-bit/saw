@@ -153,6 +153,14 @@ app.post('/api/bot-flow/publish', requireUser, requireAccess, async (req, res) =
   const ids = new Set(nodes.map((node) => node.id));
   const invalidLink = nodes.some((node) => (node.next && !ids.has(node.next)) || (node.options || []).some((option) => option.next && !ids.has(option.next)));
   if (invalidLink) return res.status(400).json({ error: 'يوجد رابط يشير إلى عقدة محذوفة' });
+  const invalidCarousel = nodes.find((node) => node.type === 'carousel' && (
+    !String(node.templateName || '').trim()
+    || !Array.isArray(node.cards)
+    || node.cards.length < 2
+    || node.cards.length > 10
+    || node.cards.some((card) => !/^https:\/\//i.test(String(card?.imageUrl || '').trim()))
+  ));
+  if (invalidCarousel) return res.status(400).json({ error: 'أكمل سلايدر المنتجات: اسم قالب Meta وصور HTTPS لعدد 2 إلى 10 بطاقات' });
   const byId = new Map(nodes.map((node) => [node.id, node]));
   const reachable = new Set(), queue = [startNodes[0].id]; let hasReachableEnd = false;
   while (queue.length) {
