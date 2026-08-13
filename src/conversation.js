@@ -47,6 +47,21 @@ function graphPrompt(node, answers) {
   };
 }
 
+function carouselReply(node, answers) {
+  return {
+    type: 'carousel',
+    text: interpolate(node.message || 'سلايدر منتجات', answers),
+    templateName: String(node.templateName || '').trim(),
+    languageCode: String(node.languageCode || 'ar').trim(),
+    bodyValue: interpolate(node.bodyValue || '', answers),
+    cards: (node.cards || []).map((card) => ({
+      imageUrl: interpolate(card.imageUrl || '', answers),
+      bodyValue: interpolate(card.bodyValue || '', answers),
+      buttonValue: interpolate(card.buttonValue || '', answers)
+    }))
+  };
+}
+
 function stepPrompt(step) {
   if (step?.type !== 'choice') return step?.question;
   const text = String(step.question || '').split('\n').filter((line) => !/^\s*[0-9٠-٩]+\s*[-.)ـ]\s*/.test(line)).join('\n').trim();
@@ -66,6 +81,11 @@ async function advanceGraph(accountId, config, sessions, sender, session, firstN
     if (node.type === 'message') {
       const message = interpolate(node.message, session.answers);
       if (message) replies.push(message);
+      nodeId = node.next;
+      continue;
+    }
+    if (node.type === 'carousel') {
+      replies.push(carouselReply(node, session.answers));
       nodeId = node.next;
       continue;
     }
