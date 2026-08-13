@@ -4,6 +4,18 @@ import { processMessage } from './conversation.js';
 
 const DEFAULT_VERSION = process.env.META_GRAPH_VERSION || 'v25.0';
 const processedMessages = new Map();
+const diagnosticEvents = new Map();
+
+function recordDiagnostic(accountId, type, details = {}) {
+  const events = diagnosticEvents.get(accountId) || [];
+  events.unshift({ at: new Date().toISOString(), type, ...details });
+  diagnosticEvents.set(accountId, events.slice(0, 40));
+}
+
+const maskedNumber = (value) => {
+  const number = clean(value);
+  return number ? `***${number.slice(-4)}` : '';
+};
 
 function encryptionKey() {
   const secret = process.env.CREDENTIALS_ENCRYPTION_KEY || process.env.ADMIN_PASSWORD;
@@ -93,10 +105,20 @@ async function graphRequest(settings, path, options = {}) {
 export async function testCloudConnection(accountId, origin = '') {
   const settings = await privateSettings(accountId);
   const data = await graphRequest(settings, `${settings.phoneNumberId}?fields=display_phone_number,verified_name,quality_rating`);
+  let appSubscribed = null;
+  if (settings.businessAccountId) {
+    const subscription = await graphRequest(settings, `${settings.businessAccountId}/subscribed_apps`, { method: 'POST', body: '{}' });
+    appSubscribed = subscription.success === true;
+    recordDiagnostic(accountId, 'app_subscription_checked', { success: appSubscribed });
+  }
   const stored = await getCloudDocument(accountId);
   const updated = { ...stored, displayPhone: data.display_phone_number || '', verifiedName: data.verified_name || '', lastTestedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
   await saveCloudDocument(accountId, updated);
-  return { ...publicSettings(updated, origin), qualityRating: data.quality_rating || null };
+  return { ...publicSettings(updated, origin), qualityRating: data.quality_rating || null, appSubscribed };
+}
+
+export function getCloudDiagnostics(accountId) {
+  return diagnosticEvents.get(accountId) || [];
 }
 
 function textFallback(reply) {
@@ -154,13 +176,23 @@ function incomingText(message) {
 }
 
 export async function handleCloudWebhook(accountId, payload) {
+  recordDiagnostic(accountId, 'webhook_received', { entries: Array.isArray(payload?.entry) ? payload.entry.length : 0 });
   const account = await getAccount(accountId);
-  if (!accountAccess(account).allowed) return;
+  if (!accountAccess(account).allowed) {
+    recordDiagnostic(accountId, 'webhook_ignored', { reason: 'account_access' });
+    return;
+  }
   const settings = await privateSettings(accountId);
-  if (!settings.enabled) return;
+  if (!settings.enabled) {
+    recordDiagnostic(accountId, 'webhook_ignored', { reason: 'cloud_disabled' });
+    return;
+  }
   for (const entry of payload.entry || []) for (const change of entry.changes || []) {
     const value = change.value || {};
-    if (value.metadata?.phone_number_id && value.metadata.phone_number_id !== settings.phoneNumberId) continue;
+    if (value.metadata?.phone_number_id && value.metadata.phone_number_id !== settings.phoneNumberId) {
+      recordDiagnostic(accountId, 'webhook_ignored', { reason: 'phone_number_id_mismatch' });
+      continue;
+    }
     for (const message of value.messages || []) {
       const dedupeKey = `${accountId}:${message.id || ''}`;
       const now = Date.now();
@@ -169,9 +201,19 @@ export async function handleCloudWebhook(accountId, payload) {
       if (message.id) processedMessages.set(dedupeKey, now);
       const text = incomingText(message).trim();
       if (!text || !message.from) continue;
-      const contact = (value.contacts || []).find((item) => item.wa_id === message.from);
-      const replies = await processMessage(accountId, `cloud-${message.from}`, text, contact?.profile?.name || '');
-      for (const reply of replies) if (reply) await sendCloudReply(accountId, message.from, reply);
+      recordDiagnostic(accountId, 'message_received', { messageType: message.type || '', from: maskedNumber(message.from), selection: text.slice(0, 80) });
+      try {
+        const contact = (value.contacts || []).find((item) => item.wa_id === message.from);
+        const replies = await processMessage(accountId, `cloud-${message.from}`, text, contact?.profile?.name || '');
+        recordDiagnostic(accountId, 'bot_replies_ready', { count: replies.length, to: maskedNumber(message.from) });
+        for (const reply of replies) if (reply) {
+          await sendCloudReply(accountId, message.from, reply);
+          recordDiagnostic(accountId, 'reply_sent', { replyType: typeof reply === 'string' ? 'text' : reply.type || 'unknown', to: maskedNumber(message.from) });
+        }
+      } catch (error) {
+        recordDiagnostic(accountId, 'message_processing_failed', { error: String(error?.message || error).slice(0, 240), from: maskedNumber(message.from) });
+        throw error;
+      }
     }
   }
 }
