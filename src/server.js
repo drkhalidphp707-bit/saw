@@ -9,7 +9,7 @@ import {
 import { processMessage } from './conversation.js';
 import { getWhatsAppStatus, logoutWhatsApp, startWhatsApp, stopWhatsApp } from './whatsapp.js';
 import {
-  getCloudSettings, handleCloudWebhook, saveCloudSettings, testCloudConnection,
+  getCloudDiagnostics, getCloudSettings, handleCloudWebhook, saveCloudSettings, testCloudConnection,
   validateCloudSignature, verifyCloudWebhook
 } from './cloud-api.js';
 
@@ -122,6 +122,7 @@ app.post('/api/cloud/test', requireUser, requireAccess, async (req, res) => {
   try { res.json(await testCloudConnection(req.account.id, `${req.protocol}://${req.get('host')}`)); }
   catch (error) { res.status(400).json({ error: error.message }); }
 });
+app.get('/api/cloud/diagnostics', requireUser, requireAccess, (req, res) => res.json({ events: getCloudDiagnostics(req.account.id) }));
 app.get('/api/config', requireUser, requireAccess, async (req, res) => res.json(await getConfig(req.account.id)));
 app.put('/api/config', requireUser, requireAccess, async (req, res) => {
   const requested = req.body;
