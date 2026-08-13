@@ -189,7 +189,7 @@ $('#test-cloud').onclick = async () => {
   $('#cloud-result').textContent='جاري الاتصال بـ Meta…'; $('#cloud-result').className='cloud-result';
   try {
     cloudSettings = await api('/api/cloud/test', { method:'POST' }); fillCloudSettings();
-    $('#cloud-result').textContent=`نجح الاتصال ✅ ${cloudSettings.verifiedName || ''} ${cloudSettings.displayPhone || ''}`;
+    $('#cloud-result').textContent=`نجح الاتصال والاشتراك بالرسائل ✅ ${cloudSettings.verifiedName || ''} ${cloudSettings.displayPhone || ''}`;
     $('#cloud-result').className='cloud-result good'; await refreshStatus();
   } catch (error) { $('#cloud-result').textContent=`فشل الاتصال: ${error.message}`; $('#cloud-result').className='cloud-result bad'; }
 };
