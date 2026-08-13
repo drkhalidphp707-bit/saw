@@ -57,6 +57,8 @@
           <label>Verify Token<div class="copy-field"><input id="cloud-verify-token" dir="ltr" readonly><button data-copy="cloud-verify-token">نسخ</button></div></label>
           <div class="cloud-steps"><b>بعد الحفظ:</b><ol><li>افتح Meta Developers ← WhatsApp ← Configuration.</li><li>ضع Callback URL وVerify Token ثم اضغط Verify and save.</li><li>فعّل الاشتراك بحقل <code>messages</code>.</li><li>ارجع واضغط «اختبار الاتصال».</li></ol></div>
           <div id="cloud-result" class="cloud-result">أدخل البيانات واحفظها أولاً.</div>
+          <button id="check-cloud-events" class="ghost cloud-check">فحص آخر رسائل Webhook</button>
+          <pre id="cloud-events" class="cloud-events" hidden></pre>
         </article>
       </div>
     </section>
