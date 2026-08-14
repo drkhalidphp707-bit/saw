@@ -3,8 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>لوحة المساعد الآلي</title>
-  <link rel="stylesheet" href="/style.css?v=20260814-2" />
+  <title>لوحة المساعد الآلي - إدارة واتساب</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css?v=20260814-3" />
 </head>
 <body>
   <aside class="sidebar">
@@ -16,6 +19,8 @@
       <button class="nav" data-page="cloud">◉ <span>Cloud API</span></button>
       <button class="nav" data-page="bot">⌘ <span>Bot</span></button>
       <button class="nav" data-page="test">◁ <span>تجربة البوت</span></button>
+      <button class="nav" data-page="broadcast">📢 <span>حملات البث</span></button>
+      <button class="nav" data-page="billing">💳 <span>الاشتراك والباقات</span></button>
     </nav>
     <div class="account-card"><b id="account-name">حسابي</b><small id="account-plan">تجربة مجانية</small><button id="account-logout">تسجيل الخروج</button></div>
     <div class="side-note">بيانات كل حساب محفوظة بشكل مستقل</div>
@@ -75,23 +80,180 @@
       <article class="card table-wrap"><table><thead id="customer-head"></thead><tbody id="customer-body"></tbody></table><div id="empty-customers" class="empty">لا توجد بيانات بعد</div></article>
     </section>
 
+    <section class="page" id="broadcast">
+      <div class="section-title">
+        <div><h2>حملات البث والرسائل الجماعية</h2><p>أرسل عروضك وإعلاناتك لجميع الزبائن المسجلين دفعة واحدة عبر الواتساب</p></div>
+        <span class="cloud-badge good" id="broadcast-audience-count">المستهدفون: 0 زبون</span>
+      </div>
+
+      <div class="grid-2">
+        <article class="card">
+          <div class="card-head"><div><h2>إنشاء حملة بث جديدة 🚀</h2><p>صمّم الرسالة وحدّد الجمهور المستهدف للإرسال</p></div></div>
+          <label>اسم الحملة الإعلانية
+            <input id="broadcast-name" placeholder="مثال: عروض تخفيضات نهاية الأسبوع">
+          </label>
+          <label>تحديد الفئة المستهدفة
+            <select id="broadcast-filter">
+              <option value="all">جميع الزبائن المخزنين بقاعدة البيانات</option>
+            </select>
+          </label>
+          <label>نص الرسالة الترويجية
+            <small>يمكنك استخدام <code>{{name}}</code> لاستبدال اسم الزبون تلقائياً لكل رسالة</small>
+            <textarea id="broadcast-message" rows="5" placeholder="أهلاً بك يا {{name}} 🌟&#10;نود إعلامك بتوفر عروض حصرية جديدة..."></textarea>
+          </label>
+          <label>رابط صورة أو ملصق العرض (HTTPS - اختياري)
+            <input id="broadcast-media-url" dir="ltr" placeholder="https://example.com/promo.jpg">
+          </label>
+          <div class="switch-row" style="margin:16px 0">
+            <span><b>فاصل زمني أمان (3 ثوانٍ)</b><small>حماية الرقم لمنع الحظر والتأكد من وصول الرسائل بنجاح</small></span>
+            <input id="broadcast-safe-delay" type="checkbox" checked disabled>
+          </div>
+          <button id="send-broadcast" class="primary" style="width:100%;margin-top:10px">🚀 إطلاق حملة البث الآن</button>
+        </article>
+
+        <article class="card">
+          <div class="card-head"><div><h2>حالة الإرسال المباشر 📊</h2><p>متابعة التقدّم الفوري للحملة الحالية</p></div></div>
+          <div id="broadcast-status-box" class="broadcast-status-box">
+            <div class="broadcast-progress-bar"><div id="broadcast-progress-fill" style="width:0%"></div></div>
+            <div class="broadcast-stats-row">
+              <div><span>المجهّزون</span><strong id="bc-total">0</strong></div>
+              <div><span>تم الإرسال</span><strong id="bc-sent" style="color:var(--primary-600)">0</strong></div>
+              <div><span>فشل</span><strong id="bc-failed" style="color:var(--danger)">0</strong></div>
+            </div>
+            <div id="broadcast-log" class="broadcast-log">بانتظار إطلاق أول حملة بث…</div>
+          </div>
+        </article>
+      </div>
+
+      <div style="margin-top:28px">
+        <div class="card-head"><div><h2>سجل حملات البث السابقة</h2><p>أرشيف للحملات التي تم إرسالها مسبقاً</p></div></div>
+        <article class="card table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>اسم الحملة</th>
+                <th>تاريخ الإرسال</th>
+                <th>عدد المستهدفين</th>
+                <th>تم الإرسال</th>
+                <th>الحالة</th>
+              </tr>
+            </thead>
+            <tbody id="broadcast-history-body">
+              <tr><td colspan="5" style="text-align:center;color:var(--text-muted)">لا توجد حملات بث سابقة بعد</td></tr>
+            </tbody>
+          </table>
+        </article>
+      </div>
+    </section>
+
+    <section class="page" id="billing">
+      <div class="section-title">
+        <div><h2>الاشتراك والباقات</h2><p>تابع حالة اشتراكك، اختر الباقة المناسبة، أو مدّد ترخيص حسابك</p></div>
+        <span id="billing-status-badge" class="cloud-badge good">تجربة مجانية</span>
+      </div>
+
+      <article class="card billing-status-card">
+        <div class="billing-status-grid">
+          <div>
+            <span class="billing-label">حالة البوت والحساب الحالية</span>
+            <h3 id="billing-plan-title">باقة التجربة المجانية</h3>
+            <p id="billing-plan-desc">تتيح لك تجربة جميع ميزات المساعد الآلي لإنشاء البوت وربط الرقم.</p>
+          </div>
+          <div class="billing-metric">
+            <span class="billing-label">المتبقي في اشتراكك</span>
+            <strong id="billing-days-left">3 أيام</strong>
+            <small id="billing-expiry-date">تنتهي في: --</small>
+          </div>
+          <div class="billing-metric">
+            <span class="billing-label">حالة الاتصال</span>
+            <strong id="billing-phone-number">غير مربوط</strong>
+            <small>WhatsApp Active</small>
+          </div>
+        </div>
+      </article>
+
+      <div class="plans-header">
+        <h2>باقة الاشتراك الموحدة</h2>
+        <p>اشتراك كامل يشمل جميع الميزات المتقدمة وسرعة الاستجابة</p>
+      </div>
+
+      <div class="plans-grid single-plan-grid">
+        <article class="plan-card featured single-plan">
+          <span class="popular-badge">الباقة الشاملة 🔥</span>
+          <span class="plan-type">الباقة الاحترافية الكاملة</span>
+          <div class="plan-price"><strong>$10</strong><span>/ شهرياً (15,000 د.ع)</span></div>
+          <p>اشتراك شامل يتضمن جميع الميزات والخصائص المتقدمة بدون أي قيود.</p>
+          <ul class="plan-features">
+            <li>✓ 1 رقم واتساب مرتبط</li>
+            <li>✓ 5,000 محادثة شهرياً</li>
+            <li>✓ جميع المكونات + ارسال ملفات PDF وGPS</li>
+            <li>✓ دعم WhatsApp Cloud API الرسمي من Meta</li>
+            <li>✓ شرط وتفرّع ذكي (Condition Nodes)</li>
+            <li>✓ إشعارات فورية على واتساب الإدمن</li>
+            <li>✓ دعم فني أولوية 24/7</li>
+          </ul>
+          <button class="primary select-plan-btn" data-plan="الباقة الشاملة ($10)" data-price="$10 (15,000 د.ع)">الاشتراك والترقية الآن</button>
+        </article>
+      </div>
+
+      <article class="card payment-info-card">
+        <div class="card-head">
+          <div>
+            <h2>طرق الدفع والتفعيل المباشر</h2>
+            <p>يمكنك التفعيل الفوري عن طريق زين كاش أو الماستركارد أو التواصل المباشر مع الإدارة</p>
+          </div>
+        </div>
+        <div class="payment-methods-grid">
+          <div class="payment-method-item">
+            <span class="payment-icon">📱</span>
+            <div>
+              <b>زين كاش (ZainCash)</b>
+              <p>حفظ وتحويل إلى رقم المحفظة:<br><code dir="ltr">0770 000 0000</code></p>
+            </div>
+          </div>
+          <div class="payment-method-item">
+            <span class="payment-icon">💳</span>
+            <div>
+              <b>ماستركارد / كي كارت</b>
+              <p>تحويل مباشر أو دفع إلكتروني آمن بنفس اللحظة.</p>
+            </div>
+          </div>
+          <div class="payment-method-item">
+            <span class="payment-icon">💬</span>
+            <div>
+              <b>تأكيد وتفعيل فوري</b>
+              <p>أرسل صورة الحوالة لواتساب الإدمن وسيتم تفعيل حسابك فوراً.</p>
+            </div>
+          </div>
+        </div>
+        <div class="payment-actions">
+          <a id="pay-whatsapp-admin" href="#" target="_blank" class="primary button-like">💬 تواصل مع المبيعات لإرسال وصل التحويل والتفعيل الفوري</a>
+        </div>
+      </article>
+    </section>
+
     <section class="page bot-page" id="bot">
       <div class="bot-toolbar">
         <div class="bot-title-row"><button id="bot-menu-toggle" class="ghost" title="إظهار القائمة">☰</button><div><h2>منشئ البوت</h2><p>أنشئ رسائل وأسئلة وأزراراً واربطها بمسارات مختلفة</p></div></div>
-        <div class="bot-toolbar-actions"><span id="bot-save-state">المخطط محفوظ</span><input id="bot-import-file" type="file" accept="application/json,.json" hidden><button id="bot-import" class="ghost">↑ استيراد JSON</button><button id="bot-export" class="ghost">↓ تصدير JSON</button><button id="bot-preview" class="ghost">▶ معاينة</button><button id="bot-save" class="ghost">حفظ المسودة</button><button id="bot-publish" class="primary">نشر على واتساب</button></div>
+        <div class="bot-toolbar-actions"><span id="bot-save-state">المخطط محفوظ</span><input id="bot-import-file" type="file" accept="application/json,.json" hidden><button id="bot-import" class="ghost">↑ استيراد JSON</button><button id="bot-export" class="ghost">↓ تصدير JSON</button><button id="bot-preview" class="ghost">▶ معاينة</button><button id="bot-templates" class="ghost">📂 قوالب جاهزة</button><button id="bot-save" class="ghost">حفظ المسودة</button><button id="bot-publish" class="primary">نشر على واتساب</button></div>
       </div>
       <div class="builder-shell">
         <aside class="block-library">
           <h3>🤖 مكونات</h3><p>اضغط لإضافة كتلة</p><input id="block-search" class="block-search" placeholder="بحث في الكتل...">
-          <div class="block-group"><b>المحادثة</b>
-            <button data-add-node="message"><i class="blue">✉</i><span>رسالة</span></button>
+          <div class="block-group"><b>المحادثة والوسائط</b>
+            <button data-add-node="message"><i class="blue">✉</i><span>رسالة نصية</span></button>
+            <button data-add-node="media"><i class="blue">🖼</i><span>صورة / وسائط</span></button>
             <button data-add-node="input"><i class="orange">أ</i><span>سؤال نصي</span></button>
             <button data-add-node="phone"><i class="orange">☎</i><span>رقم هاتف</span></button>
-            <button data-add-node="buttons"><i class="yellow">☷</i><span>أزرار</span></button>
+            <button data-add-node="location"><i class="orange">📍</i><span>طلب موقع</span></button>
+            <button data-add-node="buttons"><i class="yellow">☷</i><span>أزرار (3)</span></button>
+            <button data-add-node="list"><i class="yellow">📋</i><span>قائمة خيارات (10)</span></button>
             <button data-add-node="carousel"><i class="purple">▤</i><span>سلايدر منتجات</span></button>
           </div>
-          <div class="block-group"><b>المسار</b>
-            <button data-add-node="end"><i class="red">■</i><span>نهاية</span></button>
+          <div class="block-group"><b>التحكم والمسار</b>
+            <button data-add-node="condition"><i class="purple">🔀</i><span>شرط وتفرع</span></button>
+            <button data-add-node="notify"><i class="orange">🔔</i><span>تنبيه الإدمن</span></button>
+            <button data-add-node="end"><i class="red">■</i><span>نهاية المسار</span></button>
           </div>
           <div class="builder-help">أضف العقد بحرية، ثم اسحب من الدائرة الخارجة إلى الدائرة الداخلة لربطها. كل زر له دائرة ومسار مستقل.</div>
         </aside>
@@ -113,6 +275,18 @@
   </main>
   <div id="bot-preview-modal" class="preview-modal" hidden>
     <div class="preview-dialog"><button id="close-bot-preview" class="preview-close">×</button><div class="phone"><div class="phone-head"><span class="avatar">و</span><div><b>معاينة البوت</b><small>المسودة الحالية</small></div></div><div class="chat" id="bot-preview-chat"></div><form id="bot-preview-form"><input id="bot-preview-input" autocomplete="off" placeholder="اكتب رسالة…"><button>إرسال</button></form></div><button id="restart-bot-preview" class="ghost">إعادة التجربة</button></div>
+  </div>
+  <div id="templates-modal" class="templates-modal" hidden>
+    <div class="templates-dialog">
+      <div class="templates-head">
+        <div>
+          <h2>📂 اختر قالب مشروع جاهز</h2>
+          <p>نماذج احترافية معدّة ومجهزة للعمل مباشرة تناسب مختلف الأنشطة التجارية</p>
+        </div>
+        <button id="close-templates-modal" class="ghost">×</button>
+      </div>
+      <div class="templates-grid" id="templates-grid"></div>
+    </div>
   </div>
   <div id="toast"></div>
   <script src="/app.js?v=20260814-2" type="module"></script>

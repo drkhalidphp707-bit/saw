@@ -24,7 +24,7 @@ const interpolate = (text, answers) => String(text || '').replace(/\{\{\s*([^}]+
 
 function graphValidation(node, input) {
   const clean = String(input || '').trim();
-  if (node.type === 'buttons') {
+  if (['buttons', 'list'].includes(node.type)) {
     const normalized = normalize(clean);
     const option = (node.options || []).find((item, index) =>
       [item.label, String(index + 1), ...(item.aliases || [])].some((alias) => normalize(alias) === normalized)
@@ -40,11 +40,13 @@ function graphValidation(node, input) {
 
 function graphPrompt(node, answers) {
   const message = interpolate(node.message || node.question, answers);
-  if (node.type !== 'buttons') return message;
-  return {
-    type: 'buttons', text: message,
-    buttons: (node.options || []).map((option, index) => ({ id: option.label, label: option.label, number: index + 1 }))
-  };
+  if (['buttons', 'list'].includes(node.type)) {
+    return {
+      type: node.type, text: message,
+      buttons: (node.options || []).map((option, index) => ({ id: option.label, label: option.label, number: index + 1 }))
+    };
+  }
+  return message;
 }
 
 function carouselReply(node, answers) {
@@ -84,12 +86,37 @@ async function advanceGraph(accountId, config, sessions, sender, session, firstN
       nodeId = node.next;
       continue;
     }
+    if (node.type === 'media') {
+      const message = interpolate(node.message, session.answers);
+      const url = interpolate(node.mediaUrl, session.answers);
+      replies.push(url ? `${message}\n${url}` : message);
+      nodeId = node.next;
+      continue;
+    }
+    if (node.type === 'condition') {
+      const actualValue = session.answers[node.checkField] || '';
+      const targetValue = node.checkValue || '';
+      let match = false;
+      if (node.operator === 'contains') {
+        match = normalize(actualValue).includes(normalize(targetValue));
+      } else {
+        match = normalize(actualValue) === normalize(targetValue);
+      }
+      nodeId = match ? node.yesNext : node.noNext;
+      continue;
+    }
+    if (node.type === 'notify') {
+      const message = interpolate(node.message || 'تنبيه جديد من البوت', session.answers);
+      if (message) replies.push(`[تنبيه الإدمن 🔔]: ${message}`);
+      nodeId = node.next;
+      continue;
+    }
     if (node.type === 'carousel') {
       replies.push(carouselReply(node, session.answers));
       nodeId = node.next;
       continue;
     }
-    if (['input', 'phone', 'buttons'].includes(node.type)) {
+    if (['input', 'phone', 'location', 'buttons', 'list'].includes(node.type)) {
       session.nodeId = node.id;
       sessions[sender] = session;
       await saveSessions(accountId, sessions);

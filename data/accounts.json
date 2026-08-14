@@ -1,0 +1,14 @@
+[
+  {
+    "id": "f132dc49-ab61-4b95-a1ce-294f27fc6b61",
+    "fullName": "Khalid Waleed Khalid Aljumaili",
+    "username": "khalidphp",
+    "email": "dr.khalid.php707@gmail.com",
+    "whatsapp": "+9647710626808",
+    "passwordHash": "c4a72e42061e239b5be3cc02b0b9feca:c4ab7d49b1a75d1386d8b186a6dd72481acbe3e206611cc82fb2f6423d353a21848c3368a424fb42d5a5f06705bf3095e599457290ac83d62c9cd48f4ea24230",
+    "status": "trial",
+    "trialStartedAt": "2026-08-14T09:40:49.595Z",
+    "trialEndsAt": "2026-08-17T09:40:49.595Z",
+    "createdAt": "2026-08-14T09:40:49.595Z"
+  }
+]

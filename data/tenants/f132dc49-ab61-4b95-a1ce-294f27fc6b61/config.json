@@ -1,0 +1,1451 @@
+{
+  "botName": "المساعد الآلي",
+  "enabled": true,
+  "welcomeText": "أهلاً وسهلاً بك 🌟\nيرجى اختيار محافظتك:",
+  "completionText": "تم تسجيل معلوماتك بنجاح ✅\nسنتواصل معك قريباً.",
+  "fallbackText": "عذراً، الاختيار غير صحيح. يرجى المحاولة مرة أخرى.",
+  "steps": [
+    {
+      "id": "province",
+      "type": "choice",
+      "question": "من أي محافظة؟\n1- بغداد\n2- الأنبار",
+      "field": "المحافظة",
+      "options": [
+        {
+          "label": "بغداد",
+          "aliases": [
+            "1",
+            "بغداد"
+          ]
+        },
+        {
+          "label": "الأنبار",
+          "aliases": [
+            "2",
+            "الانبار",
+            "الأنبار",
+            "انبار"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phone",
+      "type": "phone",
+      "question": "يرجى كتابة رقم الهاتف:",
+      "field": "رقم الهاتف"
+    }
+  ],
+  "botFlow": {
+    "name": "متجر بقالة واتساب",
+    "nodes": [
+      {
+        "id": "start",
+        "type": "start",
+        "x": 80,
+        "y": 300,
+        "next": "welcome"
+      },
+      {
+        "id": "welcome",
+        "type": "message",
+        "x": 330,
+        "y": 300,
+        "message": "🛒 *أهلاً وسهلاً بكم في متجر البقالة*\nاختار القسم وشوف المنتجات والصور والأسعار وأضفها للسلة.",
+        "next": "menu"
+      },
+      {
+        "id": "menu",
+        "type": "buttons",
+        "x": 650,
+        "y": 300,
+        "message": "اختر القسم:",
+        "field": "category",
+        "options": [
+          {
+            "id": "option-1786702368890-i0tue",
+            "label": "🥤 مشروبات",
+            "aliases": [
+              "1"
+            ],
+            "next": "drinks"
+          },
+          {
+            "id": "option-1786702368891-ed7ob",
+            "label": "🍫 حلويات وسناكات",
+            "aliases": [
+              "2"
+            ],
+            "next": "snacks"
+          },
+          {
+            "id": "option-1786702368891-vhb3u",
+            "label": "🥛 ألبان وأجبان",
+            "aliases": [
+              "3"
+            ],
+            "next": "dairy"
+          },
+          {
+            "id": "option-1786702368891-yp0dd",
+            "label": "🍚 رز وزيوت",
+            "aliases": [
+              "4"
+            ],
+            "next": "riceoil"
+          },
+          {
+            "id": "option-1786702368891-vcqj5",
+            "label": "🧼 منظفات",
+            "aliases": [
+              "5"
+            ],
+            "next": "clean"
+          },
+          {
+            "id": "option-1786702368891-2tvfx",
+            "label": "🥦 خضار وفواكه",
+            "aliases": [
+              "6"
+            ],
+            "next": "produce"
+          },
+          {
+            "id": "option-1786702368891-eohz8",
+            "label": "🛒 عرض السلة",
+            "aliases": [
+              "7"
+            ],
+            "next": "cart"
+          },
+          {
+            "id": "option-1786702368891-90oxp",
+            "label": "💬 الدعم",
+            "aliases": [
+              "8"
+            ],
+            "next": "support"
+          }
+        ]
+      },
+      {
+        "id": "drinks",
+        "type": "buttons",
+        "x": 980,
+        "y": 50,
+        "message": "🥤 اختر منتج:",
+        "field": "product_name",
+        "options": [
+          {
+            "id": "option-1786702368891-p4a2a",
+            "label": "بيبسي 2.25 لتر",
+            "aliases": [
+              "1"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-1wpx5",
+            "label": "ماء 12 قنينة",
+            "aliases": [
+              "2"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-s4o17",
+            "label": "عصير برتقال 1 لتر",
+            "aliases": [
+              "3"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-9u45e",
+            "label": "↩️ رجوع",
+            "aliases": [
+              "4"
+            ],
+            "next": "menu"
+          },
+          {
+            "id": "option-1786702368891-a77it",
+            "label": "🛒 السلة",
+            "aliases": [
+              "5"
+            ],
+            "next": "cart"
+          }
+        ]
+      },
+      {
+        "id": "snacks",
+        "type": "buttons",
+        "x": 980,
+        "y": 300,
+        "message": "🍫 اختر منتج:",
+        "field": "product_name",
+        "options": [
+          {
+            "id": "option-1786702368891-5didr",
+            "label": "شيبس كبير",
+            "aliases": [
+              "1"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-m9rmk",
+            "label": "شوكولاتة",
+            "aliases": [
+              "2"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-x6ncm",
+            "label": "بسكويت",
+            "aliases": [
+              "3"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-d76wy",
+            "label": "↩️ رجوع",
+            "aliases": [
+              "4"
+            ],
+            "next": "menu"
+          },
+          {
+            "id": "option-1786702368891-msign",
+            "label": "🛒 السلة",
+            "aliases": [
+              "5"
+            ],
+            "next": "cart"
+          }
+        ]
+      },
+      {
+        "id": "dairy",
+        "type": "buttons",
+        "x": 980,
+        "y": 550,
+        "message": "🥛 اختر منتج:",
+        "field": "product_name",
+        "options": [
+          {
+            "id": "option-1786702368891-1ft0e",
+            "label": "حليب 1 لتر",
+            "aliases": [
+              "1"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-xyzqn",
+            "label": "جبن",
+            "aliases": [
+              "2"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-b519e",
+            "label": "لبن",
+            "aliases": [
+              "3"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-m13hw",
+            "label": "↩️ رجوع",
+            "aliases": [
+              "4"
+            ],
+            "next": "menu"
+          },
+          {
+            "id": "option-1786702368891-hewwt",
+            "label": "🛒 السلة",
+            "aliases": [
+              "5"
+            ],
+            "next": "cart"
+          }
+        ]
+      },
+      {
+        "id": "riceoil",
+        "type": "buttons",
+        "x": 980,
+        "y": 800,
+        "message": "🍚 اختر منتج:",
+        "field": "product_name",
+        "options": [
+          {
+            "id": "option-1786702368891-yfsbw",
+            "label": "رز 5 كيلو",
+            "aliases": [
+              "1"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-qq493",
+            "label": "زيت طبخ 1 لتر",
+            "aliases": [
+              "2"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-hgo2p",
+            "label": "سكر 5 كيلو",
+            "aliases": [
+              "3"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-zi8fl",
+            "label": "↩️ رجوع",
+            "aliases": [
+              "4"
+            ],
+            "next": "menu"
+          },
+          {
+            "id": "option-1786702368891-lo5k5",
+            "label": "🛒 السلة",
+            "aliases": [
+              "5"
+            ],
+            "next": "cart"
+          }
+        ]
+      },
+      {
+        "id": "clean",
+        "type": "buttons",
+        "x": 980,
+        "y": 1050,
+        "message": "🧼 اختر منتج:",
+        "field": "product_name",
+        "options": [
+          {
+            "id": "option-1786702368891-gt8pv",
+            "label": "مسحوق غسيل",
+            "aliases": [
+              "1"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-ylov1",
+            "label": "سائل صحون",
+            "aliases": [
+              "2"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-iezm1",
+            "label": "مناديل",
+            "aliases": [
+              "3"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-n7sb4",
+            "label": "↩️ رجوع",
+            "aliases": [
+              "4"
+            ],
+            "next": "menu"
+          },
+          {
+            "id": "option-1786702368891-8goek",
+            "label": "🛒 السلة",
+            "aliases": [
+              "5"
+            ],
+            "next": "cart"
+          }
+        ]
+      },
+      {
+        "id": "produce",
+        "type": "buttons",
+        "x": 980,
+        "y": 1300,
+        "message": "🥦 اختر منتج:",
+        "field": "product_name",
+        "options": [
+          {
+            "id": "option-1786702368891-svgv2",
+            "label": "طماطة 1 كيلو",
+            "aliases": [
+              "1"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-omc3u",
+            "label": "بطاطا 1 كيلو",
+            "aliases": [
+              "2"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-40bf1",
+            "label": "موز 1 كيلو",
+            "aliases": [
+              "3"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-smhz2",
+            "label": "↩️ رجوع",
+            "aliases": [
+              "4"
+            ],
+            "next": "menu"
+          },
+          {
+            "id": "option-1786702368891-ijl60",
+            "label": "🛒 السلة",
+            "aliases": [
+              "5"
+            ],
+            "next": "cart"
+          }
+        ]
+      },
+      {
+        "id": "product",
+        "type": "message",
+        "x": 1400,
+        "y": 500,
+        "message": "🛍️ *{{product_name}}*\nالسعر: {{product_price}} د.ع\nالمتوفر: {{product_stock}}\n\n🖼️ صورة المنتج:\n{{product_image_url}}\n\n⚙️ يتم جلب الاسم والسعر والصورة والمخزون من API المتجر بواسطة product_id.",
+        "next": "product_actions"
+      },
+      {
+        "id": "product_actions",
+        "type": "buttons",
+        "x": 1750,
+        "y": 500,
+        "message": "ماذا تريد؟",
+        "field": "product_action",
+        "options": [
+          {
+            "id": "option-1786702368891-z11i7",
+            "label": "➕ أضف للسلة",
+            "aliases": [
+              "1"
+            ],
+            "next": "added"
+          },
+          {
+            "id": "option-1786702368891-n7gkx",
+            "label": "🔢 تغيير الكمية",
+            "aliases": [
+              "2"
+            ],
+            "next": "qty"
+          },
+          {
+            "id": "option-1786702368891-4b63t",
+            "label": "➡️ منتج آخر",
+            "aliases": [
+              "3"
+            ],
+            "next": "menu"
+          },
+          {
+            "id": "option-1786702368891-xk5zg",
+            "label": "🛒 السلة",
+            "aliases": [
+              "4"
+            ],
+            "next": "cart"
+          },
+          {
+            "id": "option-1786702368891-skinw",
+            "label": "🏠 القائمة الرئيسية",
+            "aliases": [
+              "5"
+            ],
+            "next": "menu"
+          }
+        ]
+      },
+      {
+        "id": "qty",
+        "type": "input",
+        "x": 2050,
+        "y": 420,
+        "message": "اكتب الكمية المطلوبة:",
+        "field": "quantity",
+        "next": "added"
+      },
+      {
+        "id": "added",
+        "type": "message",
+        "x": 2320,
+        "y": 420,
+        "message": "✅ تمت إضافة المنتج إلى السلة.",
+        "next": "after_add"
+      },
+      {
+        "id": "after_add",
+        "type": "buttons",
+        "x": 2600,
+        "y": 420,
+        "message": "شنو تريد بعد؟",
+        "field": "after_add",
+        "options": [
+          {
+            "id": "option-1786702368891-6v6iu",
+            "label": "🛍️ مواصلة التسوق",
+            "aliases": [
+              "1"
+            ],
+            "next": "menu"
+          },
+          {
+            "id": "option-1786702368891-t930k",
+            "label": "🛒 عرض السلة",
+            "aliases": [
+              "2"
+            ],
+            "next": "cart"
+          },
+          {
+            "id": "option-1786702368891-sr4ok",
+            "label": "✅ إكمال الطلب",
+            "aliases": [
+              "3"
+            ],
+            "next": "name"
+          }
+        ]
+      },
+      {
+        "id": "cart",
+        "type": "message",
+        "x": 2920,
+        "y": 420,
+        "message": "🛒 *سلة المشتريات*\n\n{{cart_items}}\n\nالمجموع: {{cart_total}} د.ع\nأجور التوصيل: {{delivery_fee}} د.ع\nالإجمالي: {{grand_total}} د.ع",
+        "next": "cart_actions"
+      },
+      {
+        "id": "cart_actions",
+        "type": "buttons",
+        "x": 3220,
+        "y": 420,
+        "message": "خيارات السلة:",
+        "field": "cart_action",
+        "options": [
+          {
+            "id": "option-1786702368891-nvgpv",
+            "label": "✅ إكمال الطلب",
+            "aliases": [
+              "1"
+            ],
+            "next": "name"
+          },
+          {
+            "id": "option-1786702368891-csoev",
+            "label": "🗑️ حذف منتج",
+            "aliases": [
+              "2"
+            ],
+            "next": "cart"
+          },
+          {
+            "id": "option-1786702368891-imx45",
+            "label": "🛍️ مواصلة التسوق",
+            "aliases": [
+              "3"
+            ],
+            "next": "menu"
+          },
+          {
+            "id": "option-1786702368891-q1nbp",
+            "label": "🏠 القائمة الرئيسية",
+            "aliases": [
+              "4"
+            ],
+            "next": "menu"
+          }
+        ]
+      },
+      {
+        "id": "name",
+        "type": "input",
+        "x": 3520,
+        "y": 360,
+        "message": "👤 اكتب اسمك:",
+        "field": "customer_name",
+        "next": "phone"
+      },
+      {
+        "id": "phone",
+        "type": "phone",
+        "x": 3800,
+        "y": 360,
+        "message": "📞 رقم الهاتف للتوصيل:",
+        "field": "customer_phone",
+        "next": "area"
+      },
+      {
+        "id": "area",
+        "type": "input",
+        "x": 4080,
+        "y": 360,
+        "message": "📍 اكتب المنطقة / الحي:",
+        "field": "customer_area",
+        "next": "address"
+      },
+      {
+        "id": "address",
+        "type": "input",
+        "x": 4360,
+        "y": 360,
+        "message": "🏠 اكتب أقرب نقطة دالة أو تفاصيل العنوان:",
+        "field": "customer_address",
+        "next": "payment"
+      },
+      {
+        "id": "payment",
+        "type": "buttons",
+        "x": 4640,
+        "y": 360,
+        "message": "اختر طريقة الدفع:",
+        "field": "payment_method",
+        "options": [
+          {
+            "id": "option-1786702368891-nrdk2",
+            "label": "💵 نقداً عند الاستلام",
+            "aliases": [
+              "1"
+            ],
+            "next": "summary"
+          },
+          {
+            "id": "option-1786702368891-e7bci",
+            "label": "💳 دفع إلكتروني",
+            "aliases": [
+              "2"
+            ],
+            "next": "summary"
+          },
+          {
+            "id": "option-1786702368891-b7al5",
+            "label": "↩️ رجوع",
+            "aliases": [
+              "3"
+            ],
+            "next": "address"
+          }
+        ]
+      },
+      {
+        "id": "summary",
+        "type": "message",
+        "x": 4920,
+        "y": 360,
+        "message": "📋 *راجع طلبك*\nالاسم: {{customer_name}}\nالهاتف: {{customer_phone}}\nالعنوان: {{customer_area}} - {{customer_address}}\nالدفع: {{payment_method}}\n\n{{cart_items}}\n\nالإجمالي: {{grand_total}} د.ع",
+        "next": "confirm"
+      },
+      {
+        "id": "confirm",
+        "type": "buttons",
+        "x": 5200,
+        "y": 360,
+        "message": "تأكيد الطلب؟",
+        "field": "confirm_order",
+        "options": [
+          {
+            "id": "option-1786702368891-foly0",
+            "label": "✅ تأكيد الطلب",
+            "aliases": [
+              "1"
+            ],
+            "next": "done"
+          },
+          {
+            "id": "option-1786702368891-uvpu6",
+            "label": "✏️ تعديل العنوان",
+            "aliases": [
+              "2"
+            ],
+            "next": "area"
+          },
+          {
+            "id": "option-1786702368891-x904b",
+            "label": "🛒 العودة للسلة",
+            "aliases": [
+              "3"
+            ],
+            "next": "cart"
+          },
+          {
+            "id": "option-1786702368891-vy69m",
+            "label": "🏠 القائمة الرئيسية",
+            "aliases": [
+              "4"
+            ],
+            "next": "menu"
+          }
+        ]
+      },
+      {
+        "id": "done",
+        "type": "message",
+        "x": 5500,
+        "y": 360,
+        "message": "✅ *تم استلام طلبك بنجاح*\nرقم الطلب: {{order_number}}\nالحالة: قيد التجهيز\nالإجمالي: {{grand_total}} د.ع",
+        "next": "end"
+      },
+      {
+        "id": "support",
+        "type": "input",
+        "x": 1000,
+        "y": 1550,
+        "message": "💬 اكتب استفسارك وسيتم تحويله إلى موظف الدعم:",
+        "field": "support_message",
+        "next": "support_done"
+      },
+      {
+        "id": "support_done",
+        "type": "message",
+        "x": 1300,
+        "y": 1550,
+        "message": "✅ تم إرسال استفسارك للدعم.",
+        "next": "menu"
+      },
+      {
+        "id": "end",
+        "type": "end",
+        "x": 5780,
+        "y": 360,
+        "message": ""
+      }
+    ],
+    "publishedAt": "2026-08-14T10:12:50.915Z"
+  },
+  "botFlowDraft": {
+    "name": "متجر بقالة واتساب",
+    "nodes": [
+      {
+        "id": "start",
+        "type": "start",
+        "x": 80,
+        "y": 300,
+        "next": "welcome"
+      },
+      {
+        "id": "welcome",
+        "type": "message",
+        "x": 330,
+        "y": 300,
+        "message": "🛒 *أهلاً وسهلاً بكم في متجر البقالة*\nاختار القسم وشوف المنتجات والصور والأسعار وأضفها للسلة.",
+        "next": "menu"
+      },
+      {
+        "id": "menu",
+        "type": "buttons",
+        "x": 650,
+        "y": 300,
+        "message": "اختر القسم:",
+        "field": "category",
+        "options": [
+          {
+            "id": "option-1786702368890-i0tue",
+            "label": "🥤 مشروبات",
+            "aliases": [
+              "1"
+            ],
+            "next": "drinks"
+          },
+          {
+            "id": "option-1786702368891-ed7ob",
+            "label": "🍫 حلويات وسناكات",
+            "aliases": [
+              "2"
+            ],
+            "next": "snacks"
+          },
+          {
+            "id": "option-1786702368891-vhb3u",
+            "label": "🥛 ألبان وأجبان",
+            "aliases": [
+              "3"
+            ],
+            "next": "dairy"
+          },
+          {
+            "id": "option-1786702368891-yp0dd",
+            "label": "🍚 رز وزيوت",
+            "aliases": [
+              "4"
+            ],
+            "next": "riceoil"
+          },
+          {
+            "id": "option-1786702368891-vcqj5",
+            "label": "🧼 منظفات",
+            "aliases": [
+              "5"
+            ],
+            "next": "clean"
+          },
+          {
+            "id": "option-1786702368891-2tvfx",
+            "label": "🥦 خضار وفواكه",
+            "aliases": [
+              "6"
+            ],
+            "next": "produce"
+          },
+          {
+            "id": "option-1786702368891-eohz8",
+            "label": "🛒 عرض السلة",
+            "aliases": [
+              "7"
+            ],
+            "next": "cart"
+          },
+          {
+            "id": "option-1786702368891-90oxp",
+            "label": "💬 الدعم",
+            "aliases": [
+              "8"
+            ],
+            "next": "support"
+          }
+        ]
+      },
+      {
+        "id": "drinks",
+        "type": "buttons",
+        "x": 980,
+        "y": 50,
+        "message": "🥤 اختر منتج:",
+        "field": "product_name",
+        "options": [
+          {
+            "id": "option-1786702368891-p4a2a",
+            "label": "بيبسي 2.25 لتر",
+            "aliases": [
+              "1"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-1wpx5",
+            "label": "ماء 12 قنينة",
+            "aliases": [
+              "2"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-s4o17",
+            "label": "عصير برتقال 1 لتر",
+            "aliases": [
+              "3"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-9u45e",
+            "label": "↩️ رجوع",
+            "aliases": [
+              "4"
+            ],
+            "next": "menu"
+          },
+          {
+            "id": "option-1786702368891-a77it",
+            "label": "🛒 السلة",
+            "aliases": [
+              "5"
+            ],
+            "next": "cart"
+          }
+        ]
+      },
+      {
+        "id": "snacks",
+        "type": "buttons",
+        "x": 980,
+        "y": 300,
+        "message": "🍫 اختر منتج:",
+        "field": "product_name",
+        "options": [
+          {
+            "id": "option-1786702368891-5didr",
+            "label": "شيبس كبير",
+            "aliases": [
+              "1"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-m9rmk",
+            "label": "شوكولاتة",
+            "aliases": [
+              "2"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-x6ncm",
+            "label": "بسكويت",
+            "aliases": [
+              "3"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-d76wy",
+            "label": "↩️ رجوع",
+            "aliases": [
+              "4"
+            ],
+            "next": "menu"
+          },
+          {
+            "id": "option-1786702368891-msign",
+            "label": "🛒 السلة",
+            "aliases": [
+              "5"
+            ],
+            "next": "cart"
+          }
+        ]
+      },
+      {
+        "id": "dairy",
+        "type": "buttons",
+        "x": 980,
+        "y": 550,
+        "message": "🥛 اختر منتج:",
+        "field": "product_name",
+        "options": [
+          {
+            "id": "option-1786702368891-1ft0e",
+            "label": "حليب 1 لتر",
+            "aliases": [
+              "1"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-xyzqn",
+            "label": "جبن",
+            "aliases": [
+              "2"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-b519e",
+            "label": "لبن",
+            "aliases": [
+              "3"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-m13hw",
+            "label": "↩️ رجوع",
+            "aliases": [
+              "4"
+            ],
+            "next": "menu"
+          },
+          {
+            "id": "option-1786702368891-hewwt",
+            "label": "🛒 السلة",
+            "aliases": [
+              "5"
+            ],
+            "next": "cart"
+          }
+        ]
+      },
+      {
+        "id": "riceoil",
+        "type": "buttons",
+        "x": 980,
+        "y": 800,
+        "message": "🍚 اختر منتج:",
+        "field": "product_name",
+        "options": [
+          {
+            "id": "option-1786702368891-yfsbw",
+            "label": "رز 5 كيلو",
+            "aliases": [
+              "1"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-qq493",
+            "label": "زيت طبخ 1 لتر",
+            "aliases": [
+              "2"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-hgo2p",
+            "label": "سكر 5 كيلو",
+            "aliases": [
+              "3"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-zi8fl",
+            "label": "↩️ رجوع",
+            "aliases": [
+              "4"
+            ],
+            "next": "menu"
+          },
+          {
+            "id": "option-1786702368891-lo5k5",
+            "label": "🛒 السلة",
+            "aliases": [
+              "5"
+            ],
+            "next": "cart"
+          }
+        ]
+      },
+      {
+        "id": "clean",
+        "type": "buttons",
+        "x": 980,
+        "y": 1050,
+        "message": "🧼 اختر منتج:",
+        "field": "product_name",
+        "options": [
+          {
+            "id": "option-1786702368891-gt8pv",
+            "label": "مسحوق غسيل",
+            "aliases": [
+              "1"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-ylov1",
+            "label": "سائل صحون",
+            "aliases": [
+              "2"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-iezm1",
+            "label": "مناديل",
+            "aliases": [
+              "3"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-n7sb4",
+            "label": "↩️ رجوع",
+            "aliases": [
+              "4"
+            ],
+            "next": "menu"
+          },
+          {
+            "id": "option-1786702368891-8goek",
+            "label": "🛒 السلة",
+            "aliases": [
+              "5"
+            ],
+            "next": "cart"
+          }
+        ]
+      },
+      {
+        "id": "produce",
+        "type": "buttons",
+        "x": 980,
+        "y": 1300,
+        "message": "🥦 اختر منتج:",
+        "field": "product_name",
+        "options": [
+          {
+            "id": "option-1786702368891-svgv2",
+            "label": "طماطة 1 كيلو",
+            "aliases": [
+              "1"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-omc3u",
+            "label": "بطاطا 1 كيلو",
+            "aliases": [
+              "2"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-40bf1",
+            "label": "موز 1 كيلو",
+            "aliases": [
+              "3"
+            ],
+            "next": "product"
+          },
+          {
+            "id": "option-1786702368891-smhz2",
+            "label": "↩️ رجوع",
+            "aliases": [
+              "4"
+            ],
+            "next": "menu"
+          },
+          {
+            "id": "option-1786702368891-ijl60",
+            "label": "🛒 السلة",
+            "aliases": [
+              "5"
+            ],
+            "next": "cart"
+          }
+        ]
+      },
+      {
+        "id": "product",
+        "type": "message",
+        "x": 1400,
+        "y": 500,
+        "message": "🛍️ *{{product_name}}*\nالسعر: {{product_price}} د.ع\nالمتوفر: {{product_stock}}\n\n🖼️ صورة المنتج:\n{{product_image_url}}\n\n⚙️ يتم جلب الاسم والسعر والصورة والمخزون من API المتجر بواسطة product_id.",
+        "next": "product_actions"
+      },
+      {
+        "id": "product_actions",
+        "type": "buttons",
+        "x": 1750,
+        "y": 500,
+        "message": "ماذا تريد؟",
+        "field": "product_action",
+        "options": [
+          {
+            "id": "option-1786702368891-z11i7",
+            "label": "➕ أضف للسلة",
+            "aliases": [
+              "1"
+            ],
+            "next": "added"
+          },
+          {
+            "id": "option-1786702368891-n7gkx",
+            "label": "🔢 تغيير الكمية",
+            "aliases": [
+              "2"
+            ],
+            "next": "qty"
+          },
+          {
+            "id": "option-1786702368891-4b63t",
+            "label": "➡️ منتج آخر",
+            "aliases": [
+              "3"
+            ],
+            "next": "menu"
+          },
+          {
+            "id": "option-1786702368891-xk5zg",
+            "label": "🛒 السلة",
+            "aliases": [
+              "4"
+            ],
+            "next": "cart"
+          },
+          {
+            "id": "option-1786702368891-skinw",
+            "label": "🏠 القائمة الرئيسية",
+            "aliases": [
+              "5"
+            ],
+            "next": "menu"
+          }
+        ]
+      },
+      {
+        "id": "qty",
+        "type": "input",
+        "x": 2050,
+        "y": 420,
+        "message": "اكتب الكمية المطلوبة:",
+        "field": "quantity",
+        "next": "added"
+      },
+      {
+        "id": "added",
+        "type": "message",
+        "x": 2320,
+        "y": 420,
+        "message": "✅ تمت إضافة المنتج إلى السلة.",
+        "next": "after_add"
+      },
+      {
+        "id": "after_add",
+        "type": "buttons",
+        "x": 2600,
+        "y": 420,
+        "message": "شنو تريد بعد؟",
+        "field": "after_add",
+        "options": [
+          {
+            "id": "option-1786702368891-6v6iu",
+            "label": "🛍️ مواصلة التسوق",
+            "aliases": [
+              "1"
+            ],
+            "next": "menu"
+          },
+          {
+            "id": "option-1786702368891-t930k",
+            "label": "🛒 عرض السلة",
+            "aliases": [
+              "2"
+            ],
+            "next": "cart"
+          },
+          {
+            "id": "option-1786702368891-sr4ok",
+            "label": "✅ إكمال الطلب",
+            "aliases": [
+              "3"
+            ],
+            "next": "name"
+          }
+        ]
+      },
+      {
+        "id": "cart",
+        "type": "message",
+        "x": 2920,
+        "y": 420,
+        "message": "🛒 *سلة المشتريات*\n\n{{cart_items}}\n\nالمجموع: {{cart_total}} د.ع\nأجور التوصيل: {{delivery_fee}} د.ع\nالإجمالي: {{grand_total}} د.ع",
+        "next": "cart_actions"
+      },
+      {
+        "id": "cart_actions",
+        "type": "buttons",
+        "x": 3220,
+        "y": 420,
+        "message": "خيارات السلة:",
+        "field": "cart_action",
+        "options": [
+          {
+            "id": "option-1786702368891-nvgpv",
+            "label": "✅ إكمال الطلب",
+            "aliases": [
+              "1"
+            ],
+            "next": "name"
+          },
+          {
+            "id": "option-1786702368891-csoev",
+            "label": "🗑️ حذف منتج",
+            "aliases": [
+              "2"
+            ],
+            "next": "cart"
+          },
+          {
+            "id": "option-1786702368891-imx45",
+            "label": "🛍️ مواصلة التسوق",
+            "aliases": [
+              "3"
+            ],
+            "next": "menu"
+          },
+          {
+            "id": "option-1786702368891-q1nbp",
+            "label": "🏠 القائمة الرئيسية",
+            "aliases": [
+              "4"
+            ],
+            "next": "menu"
+          }
+        ]
+      },
+      {
+        "id": "name",
+        "type": "input",
+        "x": 3520,
+        "y": 360,
+        "message": "👤 اكتب اسمك:",
+        "field": "customer_name",
+        "next": "phone"
+      },
+      {
+        "id": "phone",
+        "type": "phone",
+        "x": 3800,
+        "y": 360,
+        "message": "📞 رقم الهاتف للتوصيل:",
+        "field": "customer_phone",
+        "next": "area"
+      },
+      {
+        "id": "area",
+        "type": "input",
+        "x": 4080,
+        "y": 360,
+        "message": "📍 اكتب المنطقة / الحي:",
+        "field": "customer_area",
+        "next": "address"
+      },
+      {
+        "id": "address",
+        "type": "input",
+        "x": 4360,
+        "y": 360,
+        "message": "🏠 اكتب أقرب نقطة دالة أو تفاصيل العنوان:",
+        "field": "customer_address",
+        "next": "payment"
+      },
+      {
+        "id": "payment",
+        "type": "buttons",
+        "x": 4640,
+        "y": 360,
+        "message": "اختر طريقة الدفع:",
+        "field": "payment_method",
+        "options": [
+          {
+            "id": "option-1786702368891-nrdk2",
+            "label": "💵 نقداً عند الاستلام",
+            "aliases": [
+              "1"
+            ],
+            "next": "summary"
+          },
+          {
+            "id": "option-1786702368891-e7bci",
+            "label": "💳 دفع إلكتروني",
+            "aliases": [
+              "2"
+            ],
+            "next": "summary"
+          },
+          {
+            "id": "option-1786702368891-b7al5",
+            "label": "↩️ رجوع",
+            "aliases": [
+              "3"
+            ],
+            "next": "address"
+          }
+        ]
+      },
+      {
+        "id": "summary",
+        "type": "message",
+        "x": 4920,
+        "y": 360,
+        "message": "📋 *راجع طلبك*\nالاسم: {{customer_name}}\nالهاتف: {{customer_phone}}\nالعنوان: {{customer_area}} - {{customer_address}}\nالدفع: {{payment_method}}\n\n{{cart_items}}\n\nالإجمالي: {{grand_total}} د.ع",
+        "next": "confirm"
+      },
+      {
+        "id": "confirm",
+        "type": "buttons",
+        "x": 5200,
+        "y": 360,
+        "message": "تأكيد الطلب؟",
+        "field": "confirm_order",
+        "options": [
+          {
+            "id": "option-1786702368891-foly0",
+            "label": "✅ تأكيد الطلب",
+            "aliases": [
+              "1"
+            ],
+            "next": "done"
+          },
+          {
+            "id": "option-1786702368891-uvpu6",
+            "label": "✏️ تعديل العنوان",
+            "aliases": [
+              "2"
+            ],
+            "next": "area"
+          },
+          {
+            "id": "option-1786702368891-x904b",
+            "label": "🛒 العودة للسلة",
+            "aliases": [
+              "3"
+            ],
+            "next": "cart"
+          },
+          {
+            "id": "option-1786702368891-vy69m",
+            "label": "🏠 القائمة الرئيسية",
+            "aliases": [
+              "4"
+            ],
+            "next": "menu"
+          }
+        ]
+      },
+      {
+        "id": "done",
+        "type": "message",
+        "x": 5500,
+        "y": 360,
+        "message": "✅ *تم استلام طلبك بنجاح*\nرقم الطلب: {{order_number}}\nالحالة: قيد التجهيز\nالإجمالي: {{grand_total}} د.ع",
+        "next": "end"
+      },
+      {
+        "id": "support",
+        "type": "input",
+        "x": 1000,
+        "y": 1550,
+        "message": "💬 اكتب استفسارك وسيتم تحويله إلى موظف الدعم:",
+        "field": "support_message",
+        "next": "support_done"
+      },
+      {
+        "id": "support_done",
+        "type": "message",
+        "x": 1300,
+        "y": 1550,
+        "message": "✅ تم إرسال استفسارك للدعم.",
+        "next": "menu"
+      },
+      {
+        "id": "end",
+        "type": "end",
+        "x": 5780,
+        "y": 360,
+        "message": ""
+      }
+    ],
+    "publishedAt": "2026-08-14T10:12:50.915Z"
+  }
+}

@@ -77,5 +77,6 @@ export const getConfig=(id)=>getDocument(id,'config',defaultConfig); export cons
 export const getCustomers=(id)=>getDocument(id,'customers',[]); export const saveCustomers=(id,data)=>saveDocument(id,'customers',data);
 export const getSessions=(id)=>getDocument(id,'sessions',{}); export const saveSessions=(id,data)=>saveDocument(id,'sessions',data);
 export const getCloudDocument=(id)=>getDocument(id,'cloud',null); export const saveCloudDocument=(id,data)=>saveDocument(id,'cloud',data);
+export const getBroadcastHistory=(id)=>getDocument(id,'broadcast',[]); export const saveBroadcastHistory=(id,data)=>saveDocument(id,'broadcast',data);
 export const authDirFor=(id)=>tenantFiles(id).auth; export const resetAllSessions=(id)=>saveSessions(id,{});
 export function accountAccess(account){if(!account)return{allowed:false,state:'missing',daysLeft:0};if(account.status==='active')return{allowed:true,state:'active',daysLeft:null};if(account.status==='suspended')return{allowed:false,state:'suspended',daysLeft:0};const remaining=new Date(account.trialEndsAt).getTime()-Date.now();return{allowed:remaining>0,state:remaining>0?'trial':'expired',daysLeft:Math.max(0,Math.ceil(remaining/86400000))};}

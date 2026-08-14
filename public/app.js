@@ -50,11 +50,40 @@ async function load() {
 
 function renderAccount() {
   $('#account-name').textContent = account.fullName;
-  const plan = account.access.state === 'active' ? 'حساب مفعّل' : `متبقي ${account.access.daysLeft} يوم من التجربة`;
+  const isTrial = account.access.state === 'trial';
+  const isActive = account.access.state === 'active';
+  const plan = isActive ? 'حساب مفعّل بالكامل' : (isTrial ? `متبقي ${account.access.daysLeft} يوم من التجربة` : 'اشتراك منتهي - البوت متوقف');
+  
   $('#account-plan').textContent = plan;
   $('#trial-pill').textContent = plan;
+  
+  if ($('#billing-plan-title')) {
+    $('#billing-plan-title').textContent = isActive ? 'الباقة المفعّلة' : (isTrial ? 'باقة التجربة المجانية' : 'الاشتراك منتهي (البوت متوقف)');
+    $('#billing-status-badge').textContent = isActive ? 'مفعّل 🟢' : (isTrial ? `تجربة مجانية (${account.access.daysLeft} يوم)` : 'منتهي 🔴');
+    $('#billing-status-badge').className = `cloud-badge ${isActive ? 'good' : (isTrial ? '' : 'bad')}`;
+    $('#billing-days-left').textContent = isActive ? 'غير محدود' : `${account.access.daysLeft} يوم`;
+    $('#billing-expiry-date').textContent = account.trialEndsAt ? `تنتهي في: ${new Date(account.trialEndsAt).toLocaleDateString('ar-IQ')}` : 'اشتراك مفعّل دائم';
+  }
+
   const number = String(adminWhatsapp).replace(/\D/g,'');
-  $('#contact-admin').href = number ? `https://wa.me/${number}?text=${encodeURIComponent(`مرحباً، أريد تفعيل حسابي: ${account.email}`)}` : `mailto:?subject=${encodeURIComponent('طلب تفعيل الحساب')}&body=${encodeURIComponent(`أريد تفعيل حسابي: ${account.email}`)}`;
+  const adminWaUrl = number ? `https://wa.me/${number}` : '#';
+  
+  const defaultMsg = `مرحباً، أريد تفعيل وتجديد الاشتراك لحسابي: ${account.email}`;
+  if ($('#contact-admin')) $('#contact-admin').href = number ? `${adminWaUrl}?text=${encodeURIComponent(defaultMsg)}` : `mailto:?subject=${encodeURIComponent('طلب تفعيل الحساب')}&body=${encodeURIComponent(defaultMsg)}`;
+  if ($('#pay-whatsapp-admin')) $('#pay-whatsapp-admin').href = number ? `${adminWaUrl}?text=${encodeURIComponent(defaultMsg)}` : '#';
+
+  $$('.select-plan-btn').forEach(btn => {
+    btn.onclick = () => {
+      const planName = btn.dataset.plan;
+      const price = btn.dataset.price;
+      const msg = `مرحباً، أريد الاشتراك بـ (${planName}) بسعر ${price}.\nالبريد الإلكتروني للحساب: ${account.email}\nيرجى تزويدي بتفاصيل التحويل والتفعيل.`;
+      if (number) {
+        window.open(`${adminWaUrl}?text=${encodeURIComponent(msg)}`, '_blank');
+      } else {
+        toast('يرجى التواصل مع الإدارة للتفعيل');
+      }
+    };
+  });
 }
 
 function showLockedAccount() {
@@ -151,9 +180,21 @@ $$('.nav').forEach(button => button.onclick = () => {
   if (button.dataset.page === 'customers') api('/api/customers').then(x => { customers=x; renderCustomers(); });
   if (button.dataset.page === 'cloud') api('/api/cloud/settings').then(x => { cloudSettings=x; fillCloudSettings(); });
   if (button.dataset.page === 'bot') renderBotFlow();
+  if (button.dataset.page === 'broadcast') loadBroadcastPage();
 });
-$('#menu').onclick = () => document.body.classList.contains('bot-focus') ? document.body.classList.toggle('bot-nav-open') : $('.sidebar').classList.toggle('open');
-$('#bot-menu-toggle').onclick = () => document.body.classList.toggle('bot-nav-open');
+const toggleSidebarMode = () => {
+  if (window.innerWidth <= 1024) {
+    $('.sidebar').classList.toggle('open');
+  } else {
+    if (document.body.classList.contains('bot-focus')) {
+      document.body.classList.toggle('sidebar-collapsed');
+    } else {
+      document.body.classList.toggle('sidebar-collapsed');
+    }
+  }
+};
+$('#menu').onclick = toggleSidebarMode;
+$('#bot-menu-toggle').onclick = toggleSidebarMode;
 
 $('#steps').onclick = (event) => {
   const card = event.target.closest('.step-card'); if (!card) return;
@@ -229,9 +270,12 @@ $('#export').onclick = () => {
 
 // Visual Bot Builder
 const nodeMeta = {
-  start: { label:'بداية', icon:'⚑' }, message: { label:'رسالة', icon:'✉' },
-  input: { label:'سؤال نصي', icon:'أ' }, phone: { label:'رقم هاتف', icon:'☎' },
-  buttons: { label:'أزرار', icon:'☷' }, carousel: { label:'سلايدر منتجات', icon:'▤' }, end: { label:'نهاية', icon:'■' }
+  start: { label:'بداية', icon:'⚑' }, message: { label:'رسالة نصية', icon:'✉' },
+  media: { label:'صورة / وسائط', icon:'🖼' }, input: { label:'سؤال نصي', icon:'أ' },
+  phone: { label:'رقم هاتف', icon:'☎' }, location: { label:'طلب موقع', icon:'📍' },
+  buttons: { label:'أزرار (3)', icon:'☷' }, list: { label:'قائمة خيارات (10)', icon:'📋' },
+  carousel: { label:'سلايدر منتجات', icon:'▤' }, condition: { label:'شرط وتفرع', icon:'🔀' },
+  notify: { label:'تنبيه الإدمن', icon:'🔔' }, end: { label:'نهاية المسار', icon:'■' }
 };
 
 function newId(prefix='node') { return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`; }
@@ -248,43 +292,71 @@ function createDefaultBotFlow() {
     {id:end,type:'end',x:1190,y:300,message:config?.completionText || 'تم تسجيل معلوماتك بنجاح ✅'}
   ]};
 }
+function createEmptyBotFlow() {
+  return { name: 'مشروع جديد', nodes: [ { id: newId('start'), type: 'start', x: 80, y: 300, next: null } ] };
+}
 function getBotNode(id) { return botFlow.nodes.find(node => node.id === id); }
 function nodeSummary(node) {
   if (node.type==='start') return 'بداية المحادثة';
   if (node.type==='end') return node.message || 'إنهاء وحفظ بيانات الزبون';
   if (node.type==='carousel') return node.templateName ? `قالب Meta: ${node.templateName}` : 'سلايدر صور ومنتجات';
+  if (node.type==='media') return node.mediaUrl ? `وسائط (${node.mediaType||'صورة'}): ${node.mediaUrl.slice(-20)}` : (node.message || 'إرسال صورة أو ملف وسائط');
+  if (node.type==='location') return node.message || 'طلب إرسال الموقع الجغرافي (GPS)';
+  if (node.type==='condition') return `إذا كان [${node.checkField||'الحقل'}] ${node.operator==='contains'?'يحتوي':'يساوي'} "${node.checkValue||''}"`;
+  if (node.type==='notify') return `تنبيه للإدمن: ${node.adminPhone || 'رقم الواتساب'}`;
   return node.message || (node.type==='message' ? 'اكتب رسالتك هنا' : 'اكتب السؤال هنا');
 }
 function markFlowDirty() { flowDirty=true; const el=$('#bot-save-state'); el.textContent='تغييرات غير محفوظة'; el.className='dirty-badge'; }
 function allTargetOptions(currentId, selected='') {
-  return `<option value="">بدون رابط</option>` + botFlow.nodes.filter(n=>n.id!==currentId).map(n=>`<option value="${n.id}" ${n.id===selected?'selected':''}>${nodeMeta[n.type].label} — ${escapeHtml(nodeSummary(n).slice(0,30))}</option>`).join('');
+  return `<option value="">بدون رابط</option>` + botFlow.nodes.filter(n=>n.id!==currentId).map(n=>`<option value="${n.id}" ${n.id===selected?'selected':''}>${nodeMeta[n.type]?.label||n.type} — ${escapeHtml(nodeSummary(n).slice(0,30))}</option>`).join('');
 }
 
 function renderBotFlow() {
   if (!botFlow) return;
   const holder=$('#flow-nodes');
   holder.innerHTML=botFlow.nodes.map(node=>{
-    const options=node.type==='buttons' ? `<div class="visual-node-options">${(node.options||[]).map((o,i)=>`<span style="--option-color:${['#6366f1','#10b981','#f59e0b'][i%3]}">${i+1}. ${escapeHtml(o.label||'زر جديد')}</span>`).join('')}</div>`:'';
-    const ports=node.type==='buttons' ? (node.options||[]).map((o,i)=>`<i class="option-port link-port out" data-source-node="${node.id}" data-option-index="${i}" style="top:${87+i*32}px;background:${['#6366f1','#10b981','#f59e0b'][i%3]}" title="اسحب لربط: ${escapeHtml(o.label)}"></i>`).join('') : (node.type!=='end'?`<i class="node-port link-port out" data-source-node="${node.id}" title="اسحب لربط العقدة التالية"></i>`:'');
-    return `<div class="visual-node ${node.type} ${node.id===selectedNodeId?'selected':''}" data-node-id="${node.id}" style="left:${node.x||0}px;top:${node.y||0}px"><div class="visual-node-head"><b>${nodeMeta[node.type].icon}</b>${nodeMeta[node.type].label}</div><div class="visual-node-body">${escapeHtml(nodeSummary(node))}</div>${options}${node.type!=='start'?`<i class="node-port link-port in" data-target-node="${node.id}" title="أفلت الخط هنا"></i>`:''}${ports}</div>`;
+    const hasOptions = ['buttons','list'].includes(node.type);
+    const isCondition = node.type === 'condition';
+    const optionsHtml = hasOptions ? `<div class="visual-node-options">${(node.options||[]).map((o,i)=>`<span style="--option-color:${['#6366f1','#10b981','#f59e0b','#ec4899','#8b5cf6'][i%5]}">${i+1}. ${escapeHtml(o.label||'خيار جديد')}</span>`).join('')}</div>` : (isCondition ? `<div class="visual-node-options"><span style="color:#10b981">✓ نعم (تحقق الشرط)</span><span style="color:#ef4444">✕ لا (لم يتحقق)</span></div>` : '');
+    let ports = '';
+    if (hasOptions) {
+      ports = (node.options||[]).map((o,i)=>`<i class="option-port link-port out" data-source-node="${node.id}" data-option-index="${i}" style="top:${87+i*32}px;background:${['#6366f1','#10b981','#f59e0b','#ec4899','#8b5cf6'][i%5]}" title="اسحب لربط: ${escapeHtml(o.label)}"></i>`).join('');
+    } else if (isCondition) {
+      ports = `<i class="option-port link-port out" data-source-node="${node.id}" data-condition-branch="yes" style="top:87px;background:#10b981" title="مسار تحقّق الشرط (نعم)"></i><i class="option-port link-port out" data-source-node="${node.id}" data-condition-branch="no" style="top:119px;background:#ef4444" title="مسار عدم تحقّق الشرط (لا)"></i>`;
+    } else if (node.type !== 'end') {
+      ports = `<i class="node-port link-port out" data-source-node="${node.id}" title="اسحب لربط العقدة التالية"></i>`;
+    }
+    return `<div class="visual-node ${node.type} ${node.id===selectedNodeId?'selected':''}" data-node-id="${node.id}" style="left:${node.x||0}px;top:${node.y||0}px"><div class="visual-node-head"><b>${nodeMeta[node.type]?.icon||'•'}</b>${nodeMeta[node.type]?.label||node.type}</div><div class="visual-node-body">${escapeHtml(nodeSummary(node))}</div>${optionsHtml}${node.type!=='start'?`<i class="node-port link-port in" data-target-node="${node.id}" title="أفلت الخط هنا"></i>`:''}${ports}</div>`;
   }).join('');
   drawFlowLines(); renderInspector(); bindNodeDragging(); bindPortLinking();
   applyFlowZoom();
+  requestAnimationFrame(drawFlowLines);
 }
 function applyFlowZoom(){const canvas=$('#flow-canvas');if(!canvas)return;canvas.style.transform=`scale(${flowZoom})`;canvas.style.transformOrigin='0 0';$('#zoom-level').textContent=`${Math.round(flowZoom*100)}%`;}
 function setFlowZoom(value){flowZoom=Math.min(1.5,Math.max(.5,value));applyFlowZoom();}
-function nodeAnchor(node, outgoing=true, optionIndex=null) {
-  const el=$(`[data-node-id="${node.id}"]`); if(!el)return {x:0,y:0};
-  const x=(node.x||0)+(outgoing?el.offsetWidth:0);
-  const y=(node.y||0)+(optionIndex===null?el.offsetHeight-7:87+optionIndex*32);
+function nodeAnchor(node, outgoing=true, optionIndex=null, condBranch=null) {
+  const el=$(`[data-node-id="${node.id}"]`);
+  const width = el?.offsetWidth || 240;
+  const height = el?.offsetHeight || 90;
+  const x = (node.x||0) + (outgoing ? width : 0);
+  let y = (node.y||0) + (height / 2);
+  if (optionIndex !== null) y = (node.y||0) + (87 + optionIndex * 27);
+  if (condBranch === 'yes') y = (node.y||0) + 87;
+  if (condBranch === 'no') y = (node.y||0) + 115;
   return {x,y};
 }
 function curvePath(from,to) { const bend=Math.max(70,Math.abs(to.x-from.x)*.45); return `M ${from.x} ${from.y} C ${from.x+bend} ${from.y}, ${to.x-bend} ${to.y}, ${to.x} ${to.y}`; }
 function drawFlowLines() {
   const svg=$('#flow-lines'); if(!svg)return; let lines='';
   for(const node of botFlow.nodes){
-    if(node.type==='buttons') (node.options||[]).forEach((option,index)=>{const target=getBotNode(option.next);if(target)lines+=`<path class="flow-line option" d="${curvePath(nodeAnchor(node,true,index),nodeAnchor(target,false))}"/>`;});
-    else {const target=getBotNode(node.next);if(target)lines+=`<path class="flow-line" d="${curvePath(nodeAnchor(node,true),nodeAnchor(target,false))}"/>`;}
+    if(['buttons','list'].includes(node.type)) {
+      (node.options||[]).forEach((option,index)=>{const target=getBotNode(option.next);if(target)lines+=`<path class="flow-line option" d="${curvePath(nodeAnchor(node,true,index),nodeAnchor(target,false))}"/>`;});
+    } else if (node.type === 'condition') {
+      const yesTarget = getBotNode(node.yesNext); if(yesTarget) lines+=`<path class="flow-line option" style="stroke:#10b981" d="${curvePath(nodeAnchor(node,true,null,'yes'),nodeAnchor(yesTarget,false))}"/>`;
+      const noTarget = getBotNode(node.noNext); if(noTarget) lines+=`<path class="flow-line option" style="stroke:#ef4444" d="${curvePath(nodeAnchor(node,true,null,'no'),nodeAnchor(noTarget,false))}"/>`;
+    } else {
+      const target=getBotNode(node.next);if(target)lines+=`<path class="flow-line" d="${curvePath(nodeAnchor(node,true),nodeAnchor(target,false))}"/>`;
+    }
   }
   svg.innerHTML=lines;
 }
@@ -303,11 +375,20 @@ function bindPortLinking(){
   $$('.link-port.out').forEach(port=>{
     port.onpointerdown=event=>{
       if(event.button!==0)return;event.preventDefault();event.stopPropagation();
-      const sourceId=port.dataset.sourceNode;const optionIndex=port.dataset.optionIndex==null?null:Number(port.dataset.optionIndex);const source=getBotNode(sourceId);if(!source)return;
+      const sourceId=port.dataset.sourceNode;
+      const optionIndex=port.dataset.optionIndex==null?null:Number(port.dataset.optionIndex);
+      const condBranch=port.dataset.conditionBranch||null;
+      const source=getBotNode(sourceId);if(!source)return;
       selectedNodeId=sourceId;$$('.visual-node').forEach(x=>x.classList.toggle('selected',x.dataset.nodeId===sourceId));renderInspector();
-      const start=nodeAnchor(source,true,optionIndex);const svg=$('#flow-lines');const draft=document.createElementNS('http://www.w3.org/2000/svg','path');draft.setAttribute('class','flow-line linking-line');draft.setAttribute('d',curvePath(start,start));svg.append(draft);document.body.classList.add('is-linking');
+      const start=nodeAnchor(source,true,optionIndex,condBranch);const svg=$('#flow-lines');const draft=document.createElementNS('http://www.w3.org/2000/svg','path');draft.setAttribute('class','flow-line linking-line');draft.setAttribute('d',curvePath(start,start));svg.append(draft);document.body.classList.add('is-linking');
       const move=moveEvent=>{draft.setAttribute('d',curvePath(start,pointerOnCanvas(moveEvent)));const target=document.elementFromPoint(moveEvent.clientX,moveEvent.clientY)?.closest('.link-port.in');$$('.link-port.in').forEach(x=>x.classList.toggle('link-target',x===target&&x.dataset.targetNode!==sourceId));};
-      const finish=upEvent=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',finish);document.body.classList.remove('is-linking');$$('.link-port.in').forEach(x=>x.classList.remove('link-target'));const target=document.elementFromPoint(upEvent.clientX,upEvent.clientY)?.closest('.link-port.in');const targetId=target?.dataset.targetNode;if(targetId&&targetId!==sourceId){if(optionIndex===null)source.next=targetId;else if(source.options?.[optionIndex])source.options[optionIndex].next=targetId;renderBotFlow();markFlowDirty();toast('تم ربط المسار');}else{draft.remove();drawFlowLines();}};
+      const finish=upEvent=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',finish);document.body.classList.remove('is-linking');$$('.link-port.in').forEach(x=>x.classList.remove('link-target'));const target=document.elementFromPoint(upEvent.clientX,upEvent.clientY)?.closest('.link-port.in');const targetId=target?.dataset.targetNode;if(targetId&&targetId!==sourceId){
+        if (condBranch === 'yes') source.yesNext = targetId;
+        else if (condBranch === 'no') source.noNext = targetId;
+        else if(optionIndex===null) source.next=targetId;
+        else if(source.options?.[optionIndex]) source.options[optionIndex].next=targetId;
+        renderBotFlow();markFlowDirty();toast('تم ربط المسار');
+      }else{draft.remove();drawFlowLines();}};
       window.addEventListener('pointermove',move);window.addEventListener('pointerup',finish,{once:true});
     };
   });
@@ -317,18 +398,29 @@ function renderInspector() {
   const shell=$('.builder-shell');
   if(!node){pane.hidden=true;pane.innerHTML='';shell?.classList.remove('inspector-open');return;}
   pane.hidden=false;shell?.classList.add('inspector-open');
-  const messageField=!['start','carousel'].includes(node.type)?`<label>${node.type==='message'||node.type==='end'?'نص الرسالة':'نص السؤال'}<textarea id="inspect-message" rows="4">${escapeHtml(node.message||'')}</textarea></label>`:'';
-  const fieldField=['input','phone','buttons'].includes(node.type)?`<label>حفظ الإجابة باسم<input id="inspect-field" value="${escapeHtml(node.field||'الإجابة')}" placeholder="مثال: المحافظة"></label>`:'';
-  const nextField=!['buttons','end'].includes(node.type)?`<label>العقدة التالية<select id="inspect-next">${allTargetOptions(node.id,node.next)}</select></label>`:'';
-  const optionFields=node.type==='buttons'?`<div class="inspector-options"><label>الأزرار <small>(حتى 3)</small></label>${(node.options||[]).map((option,index)=>`<div class="inspector-option" data-option-index="${index}"><div class="inspector-option-head"><b>زر ${index+1}</b><button class="delete-bot-option">×</button></div><input class="inspect-option-label" value="${escapeHtml(option.label||'')}" placeholder="عنوان الزر"><input class="inspect-option-aliases" value="${escapeHtml((option.aliases||[]).join('، '))}" placeholder="كلمات بديلة: 1، بغداد"><select class="inspect-option-next">${allTargetOptions(node.id,option.next)}</select></div>`).join('')}<button id="add-bot-option" class="ghost" ${(node.options||[]).length>=3?'disabled':''}>＋ إضافة زر</button></div>`:'';
+  const messageField=!['start','carousel','condition'].includes(node.type)?`<label>${['message','media','end','notify'].includes(node.type)?'نص الرسالة':'نص السؤال'}<textarea id="inspect-message" rows="4">${escapeHtml(node.message||'')}</textarea></label>`:'';
+  const fieldField=['input','phone','buttons','list','location'].includes(node.type)?`<label>حفظ الإجابة باسم الحقل<input id="inspect-field" value="${escapeHtml(node.field||'الإجابة')}" placeholder="مثال: المحافظة"></label>`:'';
+  const nextField=!['buttons','list','condition','end'].includes(node.type)?`<label>العقدة التالية<select id="inspect-next">${allTargetOptions(node.id,node.next)}</select></label>`:'';
+  const optionFields=['buttons','list'].includes(node.type)?`<div class="inspector-options"><label>الخيارات <small>(${node.type==='list'?'حتى 10':'حتى 3'})</small></label>${(node.options||[]).map((option,index)=>`<div class="inspector-option" data-option-index="${index}"><div class="inspector-option-head"><b>خيار ${index+1}</b><button class="delete-bot-option">×</button></div><input class="inspect-option-label" value="${escapeHtml(option.label||'')}" placeholder="عنوان الخيار">${node.type==='list'?`<input class="inspect-option-desc" value="${escapeHtml(option.description||'')}" placeholder="شرح مصغر (اختياري)">`:''}<input class="inspect-option-aliases" value="${escapeHtml((option.aliases||[]).join('، '))}" placeholder="كلمات بديلة: 1، بغداد"><select class="inspect-option-next">${allTargetOptions(node.id,option.next)}</select></div>`).join('')}<button id="add-bot-option" class="ghost" ${(node.options||[]).length>=(node.type==='list'?10:3)?'disabled':''}>＋ إضافة خيار</button></div>`:'';
+  const mediaFields=node.type==='media'?`<div class="media-settings"><label>نوع الوسائط<select id="inspect-media-type"><option value="image" ${node.mediaType==='image'?'selected':''}>صورة</option><option value="video" ${node.mediaType==='video'?'selected':''}>فيديو</option><option value="document" ${node.mediaType==='document'?'selected':''}>ملف / PDF</option></select></label><label>رابط الملف المباشر (HTTPS)<input id="inspect-media-url" dir="ltr" value="${escapeHtml(node.mediaUrl||'')}" placeholder="https://example.com/file.jpg"></label></div>`:'';
+  const conditionFields=node.type==='condition'?`<div class="condition-settings"><label>اسم الحقل المراد فحصه<input id="inspect-check-field" value="${escapeHtml(node.checkField||'')}" placeholder="مثال: المحافظة"></label><label>نوع المطابقة<select id="inspect-operator"><option value="equals" ${node.operator==='equals'?'selected':''}>يساوي تماماً</option><option value="contains" ${node.operator==='contains'?'selected':''}>يحتوي على الكلمة</option></select></label><label>القيمة المطلوبة<input id="inspect-check-value" value="${escapeHtml(node.checkValue||'')}" placeholder="مثال: بغداد"></label><label>مسار (نعم - تحقق الشرط)<select id="inspect-yes-next">${allTargetOptions(node.id,node.yesNext)}</select></label><label>مسار (لا - لم يتحقق)<select id="inspect-no-next">${allTargetOptions(node.id,node.noNext)}</select></label></div>`:'';
+  const notifyFields=node.type==='notify'?`<div class="notify-settings"><label>رقم واتساب الإدمن المُنَبّه<input id="inspect-admin-phone" dir="ltr" value="${escapeHtml(node.adminPhone||'')}" placeholder="+964 7xx xxx xxxx"></label></div>`:'';
   const carouselFields=node.type==='carousel'?`<div class="carousel-settings"><label>اسم القالب المعتمد في Meta<input id="inspect-template-name" dir="ltr" value="${escapeHtml(node.templateName||'')}" placeholder="products_carousel"></label><label>لغة القالب<input id="inspect-language-code" dir="ltr" value="${escapeHtml(node.languageCode||'ar')}" placeholder="ar"></label><label>قيمة متغير الرسالة الرئيسية <small>(اختياري)</small><input id="inspect-carousel-body" value="${escapeHtml(node.bodyValue||'')}" placeholder="مثال: عروض هذا الأسبوع"></label><p class="carousel-note">يجب أن يكون القالب في Meta من نوع Carousel: رأس صورة، متغير نص واحد، وزر رابط واحد لكل بطاقة.</p><div class="carousel-cards">${(node.cards||[]).map((card,index)=>`<div class="carousel-card-editor" data-card-index="${index}"><div class="inspector-option-head"><b>بطاقة ${index+1}</b><button class="delete-carousel-card">×</button></div><label>رابط الصورة العام HTTPS<input class="inspect-card-image" dir="ltr" value="${escapeHtml(card.imageUrl||'')}" placeholder="https://example.com/product.jpg"></label><label>نص/اسم المنتج<input class="inspect-card-body" value="${escapeHtml(card.bodyValue||'')}" placeholder="اسم المنتج"></label><label>الجزء المتغير من رابط الزر <small>(اختياري)</small><input class="inspect-card-button" dir="ltr" value="${escapeHtml(card.buttonValue||'')}" placeholder="product/123"></label></div>`).join('')}</div><button id="add-carousel-card" class="ghost" ${(node.cards||[]).length>=10?'disabled':''}>＋ إضافة بطاقة</button></div>`:'';
-  pane.innerHTML=`<div class="inspector-heading"><div><span class="inspector-type">${nodeMeta[node.type].icon} ${nodeMeta[node.type].label}</span><h3>خصائص العقدة</h3></div><button id="close-inspector" title="إغلاق">×</button></div><label>معرّف العقدة<input class="node-id-field" value="${escapeHtml(node.id)}" disabled></label>${messageField}${fieldField}${nextField}${optionFields}${carouselFields}<div class="inspector-actions">${node.type!=='start'?'<button id="delete-bot-node" class="ghost danger">حذف</button>':''}<button id="duplicate-bot-node" class="ghost">▣ نسخ</button></div>`;
+  pane.innerHTML=`<div class="inspector-heading"><div><span class="inspector-type">${nodeMeta[node.type]?.icon||'•'} ${nodeMeta[node.type]?.label||node.type}</span><h3>خصائص العقدة</h3></div><button id="close-inspector" title="إغلاق">×</button></div><label>معرّف العقدة<input class="node-id-field" value="${escapeHtml(node.id)}" disabled></label>${messageField}${fieldField}${mediaFields}${conditionFields}${notifyFields}${nextField}${optionFields}${carouselFields}<div class="inspector-actions">${node.type!=='start'?'<button id="delete-bot-node" class="ghost danger">حذف</button>':''}<button id="duplicate-bot-node" class="ghost">▣ نسخ</button></div>`;
   $('#close-inspector',pane).onclick=()=>{selectedNodeId=null;renderBotFlow();};
   $('#inspect-message',pane)?.addEventListener('input',e=>{node.message=e.target.value;updateSelectedCard(node);markFlowDirty();});
   $('#inspect-field',pane)?.addEventListener('input',e=>{node.field=e.target.value;markFlowDirty();});
   $('#inspect-next',pane)?.addEventListener('change',e=>{node.next=e.target.value||null;drawFlowLines();markFlowDirty();});
-  $$('.inspector-option',pane).forEach(row=>{const option=node.options[Number(row.dataset.optionIndex)];$('.inspect-option-label',row).oninput=e=>{option.label=e.target.value;updateSelectedCard(node);markFlowDirty();};$('.inspect-option-aliases',row).oninput=e=>{option.aliases=e.target.value.split(/[،,]/).map(x=>x.trim()).filter(Boolean);markFlowDirty();};$('.inspect-option-next',row).onchange=e=>{option.next=e.target.value||null;drawFlowLines();markFlowDirty();};$('.delete-bot-option',row).onclick=()=>{node.options.splice(Number(row.dataset.optionIndex),1);renderBotFlow();markFlowDirty();};});
-  $('#add-bot-option',pane)?.addEventListener('click',()=>{if((node.options||[]).length<3){node.options.push({id:newId('option'),label:`زر ${node.options.length+1}`,aliases:[],next:null});renderBotFlow();markFlowDirty();}});
+  $('#inspect-media-type',pane)?.addEventListener('change',e=>{node.mediaType=e.target.value;markFlowDirty();});
+  $('#inspect-media-url',pane)?.addEventListener('input',e=>{node.mediaUrl=e.target.value.trim();updateSelectedCard(node);markFlowDirty();});
+  $('#inspect-admin-phone',pane)?.addEventListener('input',e=>{node.adminPhone=e.target.value.trim();updateSelectedCard(node);markFlowDirty();});
+  $('#inspect-check-field',pane)?.addEventListener('input',e=>{node.checkField=e.target.value;updateSelectedCard(node);markFlowDirty();});
+  $('#inspect-operator',pane)?.addEventListener('change',e=>{node.operator=e.target.value;updateSelectedCard(node);markFlowDirty();});
+  $('#inspect-check-value',pane)?.addEventListener('input',e=>{node.checkValue=e.target.value;updateSelectedCard(node);markFlowDirty();});
+  $('#inspect-yes-next',pane)?.addEventListener('change',e=>{node.yesNext=e.target.value||null;drawFlowLines();markFlowDirty();});
+  $('#inspect-no-next',pane)?.addEventListener('change',e=>{node.noNext=e.target.value||null;drawFlowLines();markFlowDirty();});
+  $$('.inspector-option',pane).forEach(row=>{const option=node.options[Number(row.dataset.optionIndex)];$('.inspect-option-label',row).oninput=e=>{option.label=e.target.value;updateSelectedCard(node);markFlowDirty();};if($('.inspect-option-desc',row)) $('.inspect-option-desc',row).oninput=e=>{option.description=e.target.value;markFlowDirty();};$('.inspect-option-aliases',row).oninput=e=>{option.aliases=e.target.value.split(/[،,]/).map(x=>x.trim()).filter(Boolean);markFlowDirty();};$('.inspect-option-next',row).onchange=e=>{option.next=e.target.value||null;drawFlowLines();markFlowDirty();};$('.delete-bot-option',row).onclick=()=>{node.options.splice(Number(row.dataset.optionIndex),1);renderBotFlow();markFlowDirty();};});
+  $('#add-bot-option',pane)?.addEventListener('click',()=>{const max=node.type==='list'?10:3;if((node.options||[]).length<max){node.options.push({id:newId('option'),label:`خيار ${node.options.length+1}`,aliases:[],next:null});renderBotFlow();markFlowDirty();}});
   $('#inspect-template-name',pane)?.addEventListener('input',e=>{node.templateName=e.target.value.trim();updateSelectedCard(node);markFlowDirty();});
   $('#inspect-language-code',pane)?.addEventListener('input',e=>{node.languageCode=e.target.value.trim();markFlowDirty();});
   $('#inspect-carousel-body',pane)?.addEventListener('input',e=>{node.bodyValue=e.target.value;markFlowDirty();});
@@ -337,16 +429,21 @@ function renderInspector() {
   $('#delete-bot-node',pane)?.addEventListener('click',()=>deleteBotNode(node.id));
   $('#duplicate-bot-node',pane)?.addEventListener('click',()=>{const copy=structuredClone(node);copy.id=newId(copy.type);copy.x=(node.x||0)+40;copy.y=(node.y||0)+60;if(copy.type==='start')copy.type='message';botFlow.nodes.push(copy);selectedNodeId=copy.id;renderBotFlow();markFlowDirty();});
 }
-function updateSelectedCard(node){const el=$(`[data-node-id="${node.id}"]`);if(!el)return;$('.visual-node-body',el).textContent=nodeSummary(node);if(node.type==='buttons')$('.visual-node-options',el).innerHTML=(node.options||[]).map((o,i)=>`<span style="--option-color:${['#6366f1','#10b981','#f59e0b'][i%3]}">${i+1}. ${escapeHtml(o.label||'زر جديد')}</span>`).join('');}
-function deleteBotNode(id){botFlow.nodes=botFlow.nodes.filter(n=>n.id!==id);for(const n of botFlow.nodes){if(n.next===id)n.next=null;(n.options||[]).forEach(o=>{if(o.next===id)o.next=null;});}selectedNodeId=null;renderBotFlow();markFlowDirty();}
+function updateSelectedCard(node){const el=$(`[data-node-id="${node.id}"]`);if(!el)return;$('.visual-node-body',el).textContent=nodeSummary(node);if(['buttons','list'].includes(node.type))$('.visual-node-options',el).innerHTML=(node.options||[]).map((o,i)=>`<span style="--option-color:${['#6366f1','#10b981','#f59e0b','#ec4899','#8b5cf6'][i%5]}">${i+1}. ${escapeHtml(o.label||'خيار جديد')}</span>`).join('');}
+function deleteBotNode(id){botFlow.nodes=botFlow.nodes.filter(n=>n.id!==id);for(const n of botFlow.nodes){if(n.next===id)n.next=null;if(n.yesNext===id)n.yesNext=null;if(n.noNext===id)n.noNext=null;(n.options||[]).forEach(o=>{if(o.next===id)o.next=null;});}selectedNodeId=null;renderBotFlow();markFlowDirty();}
 function addBotNode(type){
   if(type==='start'&&botFlow.nodes.some(n=>n.type==='start'))return toast('توجد عقدة بداية بالفعل');
   const selected=getBotNode(selectedNodeId); const index=botFlow.nodes.length;
   const node={id:newId(type),type,x:selected?(selected.x||0)+280:100+(index%4)*260,y:selected?(selected.y||0):100+Math.floor(index/4)*180};
   if(type==='message')node.message='اكتب رسالتك هنا';
+  if(type==='media')Object.assign(node,{message:'صورة المنتج / الكتالوج',mediaType:'image',mediaUrl:''});
   if(type==='input')Object.assign(node,{message:'اكتب إجابتك:',field:'الإجابة'});
   if(type==='phone')Object.assign(node,{message:'يرجى كتابة رقم الهاتف:',field:'رقم الهاتف'});
+  if(type==='location')Object.assign(node,{message:'يرجى إرسال موقعك الجغرافي (GPS) 📍:',field:'الموقع الجغرافي'});
   if(type==='buttons')Object.assign(node,{message:'اختر من القائمة:',field:'الاختيار',options:[{id:newId('option'),label:'الخيار الأول',aliases:['1'],next:null},{id:newId('option'),label:'الخيار الثاني',aliases:['2'],next:null}]});
+  if(type==='list')Object.assign(node,{message:'اختر الخدمة أو القسم المطلوب:',field:'الخدمة',title:'القائمة الرئيسية',buttonText:'عرض القائمة',options:[{id:newId('option'),label:'القسم الأول',description:'تفاصيل القسم',aliases:['1'],next:null},{id:newId('option'),label:'القسم الثاني',description:'تفاصيل القسم',aliases:['2'],next:null}]});
+  if(type==='condition')Object.assign(node,{checkField:'المحافظة',operator:'equals',checkValue:'بغداد',yesNext:null,noNext:null});
+  if(type==='notify')Object.assign(node,{message:'تنبيه طلب جديد: {{ name }} - {{ رقم الهاتف }}',adminPhone:''});
   if(type==='carousel')Object.assign(node,{message:'منتجاتنا',templateName:'',languageCode:'ar',bodyValue:'',cards:[{imageUrl:'',bodyValue:'المنتج الأول',buttonValue:''},{imageUrl:'',bodyValue:'المنتج الثاني',buttonValue:''}]});
   if(type==='end')node.message='تم تسجيل معلوماتك بنجاح ✅';
   botFlow.nodes.push(node); selectedNodeId=node.id;renderBotFlow();markFlowDirty();
@@ -365,6 +462,213 @@ async function saveBotFlow(publish=false){
 }
 $('#bot-save').onclick=()=>saveBotFlow(false).catch(e=>toast(e.message));
 $('#bot-publish').onclick=()=>saveBotFlow(true).catch(e=>toast(e.message));
+
+const builtinTemplates = [
+  {
+    id: 'ecommerce',
+    badge: '🛍️ تجارة ومبيعات',
+    badgeBg: '#e0f2fe',
+    badgeColor: '#0369a1',
+    name: 'متجر إلكتروني ومبيعات منتجات',
+    description: 'عرض الأقسام والعروض، صور الكتالوج، جمع معلومات الطلب (اسم ورقم وموقع GPS) وتنبيه الإدمن.',
+    nodesCount: 9,
+    flow: {
+      name: 'بوت متجر ومبيعات منتجات',
+      nodes: [
+        { id: 'start-ec', type: 'start', x: 60, y: 300, next: 'welcome-ec' },
+        { id: 'welcome-ec', type: 'message', x: 330, y: 300, message: 'مرحباً بك في متجرنا الإلكتروني 🛍️✨\nأسهل طريقة للطلب والتوصيل المباشر.', next: 'cats-ec' },
+        { id: 'cats-ec', type: 'buttons', x: 600, y: 240, message: 'اختر القسم المطلوب للتصفح:', field: 'القسم المفضّل', options: [
+          { id: newId('opt'), label: '👕 ملابس وأزياء', aliases: ['1', 'ملابس'], next: 'media-ec' },
+          { id: newId('opt'), label: '📱 إلكترونيات', aliases: ['2', 'الكترونيات'], next: 'media-ec' },
+          { id: newId('opt'), label: '✨ عطور ومستحضرات', aliases: ['3', 'عطور'], next: 'media-ec' }
+        ]},
+        { id: 'media-ec', type: 'media', x: 880, y: 240, message: 'كتالوج العروض الحصرية لهذا الأسبوع 🔥', mediaType: 'image', mediaUrl: 'https://images.unsplash.com/photo-1472851294608-062f824d29cc?w=600', next: 'name-ec' },
+        { id: 'name-ec', type: 'input', x: 1160, y: 240, message: 'يرجى كتابة اسمك الكامل لتسجيل الطلب:', field: 'الاسم الكامل', next: 'phone-ec' },
+        { id: 'phone-ec', type: 'phone', x: 1440, y: 240, message: 'يرجى كتابة رقم هاتفك للتواصل والتأكيد:', field: 'رقم الهاتف', next: 'loc-ec' },
+        { id: 'loc-ec', type: 'location', x: 1720, y: 240, message: 'يرجى إرسال موقعك الجغرافي (GPS) لتأكيد عنوان التوصيل 📍:', field: 'موقع التوصيل', next: 'notify-ec' },
+        { id: 'notify-ec', type: 'notify', x: 2000, y: 240, message: '🔔 طلب جديد من المتجر:\nالزبون: {{ الاسم الكامل }}\nالهاتف: {{ رقم الهاتف }}\nالقسم: {{ القسم المفضّل }}', adminPhone: '', next: 'end-ec' },
+        { id: 'end-ec', type: 'end', x: 2280, y: 240, message: 'تم استلام طلبك بنجاح ✅ وسيقوم فريق المبيعات بالاتصال بك خلال دقائق.' }
+      ]
+    }
+  },
+  {
+    id: 'restaurant',
+    badge: '🍔 مطاعم وتوصيل',
+    badgeBg: '#ffedd5',
+    badgeColor: '#c2410c',
+    name: 'مطعم وتوصيل وجبات سريعة',
+    description: 'قائمة طعام تفاعلية (منيو 10 خيارات)، طلب المنيو ورقم الهاتف وموقع التوصيل الفعلي وتنبيه المطبخ.',
+    nodesCount: 8,
+    flow: {
+      name: 'بوت مطعم ووجبات سريعة',
+      nodes: [
+        { id: 'start-res', type: 'start', x: 60, y: 300, next: 'welcome-res' },
+        { id: 'welcome-res', type: 'message', x: 330, y: 300, message: 'أهلاً بك في مطعمنا 🍕🍔\nخدمة التوصيل السريع لجميع مناطق المدينة.', next: 'menu-res' },
+        { id: 'menu-res', type: 'list', x: 600, y: 240, message: 'تصفح قائمة الطعام واختر الوجبة:', field: 'الوجبة المطلوبة', title: 'منيو الطعام', buttonText: 'فتح القائمة', options: [
+          { id: newId('m'), label: '🍕 بيتزا مشكل أجبان', description: 'حجم عائلي مقرمش', aliases: ['1'], next: 'notes-res' },
+          { id: newId('m'), label: '🍔 برغر لحم بلدي', description: 'مع بطاطا وجبن شيدر', aliases: ['2'], next: 'notes-res' },
+          { id: newId('m'), label: '🍗 وجبة كريسبي دجاج', description: '6 قطع + صوص ثوم', aliases: ['3'], next: 'notes-res' },
+          { id: newId('m'), label: '🥗 سلطات ومقبلات', description: 'فتوش وتبولة طازجة', aliases: ['4'], next: 'notes-res' }
+        ]},
+        { id: 'notes-res', type: 'input', x: 900, y: 240, message: 'اكتب كمية الوجبات أو أي ملاحظات خاصة بالطلب (مثل بدون بصل):', field: 'ملاحظات الطلب', next: 'loc-res' },
+        { id: 'loc-res', type: 'location', x: 1180, y: 240, message: 'أرسل موقعك الجغرافي (GPS) لإرسال الدليفري لمكانك 📍:', field: 'موقع التوصيل', next: 'phone-res' },
+        { id: 'phone-res', type: 'phone', x: 1460, y: 240, message: 'أدخل رقم هاتفك للتواصل عند وصول السائق:', field: 'رقم الهاتف', next: 'notify-res' },
+        { id: 'notify-res', type: 'notify', x: 1740, y: 240, message: '🔔 طلب طعام جديد:\nالوجبة: {{ الوجبة المطلوبة }}\nالملاحظات: {{ ملاحظات الطلب }}\nالهاتف: {{ رقم الهاتف }}', adminPhone: '', next: 'end-res' },
+        { id: 'end-res', type: 'end', x: 2020, y: 240, message: 'تم تجهيز طلبك وسيصلك خلال 30 دقيقة 🛵 بالعافية!' }
+      ]
+    }
+  },
+  {
+    id: 'clinic',
+    badge: '🏥 عيادات ومواعيد',
+    badgeBg: '#dcfce7',
+    badgeColor: '#15803d',
+    name: 'حجز مواعيد واستشارات طبية',
+    description: 'تحديد نوع الخدمة والعيادة، اختيار وقت وتاريخ المراجعة، جمع اسم المريض وتأكيد الموعد.',
+    nodesCount: 7,
+    flow: {
+      name: 'بوت حجز عيادة طبية',
+      nodes: [
+        { id: 'start-cl', type: 'start', x: 60, y: 300, next: 'welcome-cl' },
+        { id: 'welcome-cl', type: 'message', x: 330, y: 300, message: 'مرحباً بك في المركز الطبي التخصصي 🏥\nيمكنك حجز موعدك بسهولة وبدون انتظار.', next: 'service-cl' },
+        { id: 'service-cl', type: 'buttons', x: 600, y: 240, message: 'اختر نوع الاستشارة المطلوبة:', field: 'نوع الكشف', options: [
+          { id: newId('c'), label: '👨‍⚕️ كشف جديد', aliases: ['1'], next: 'name-cl' },
+          { id: newId('c'), label: '🩺 مراجعة استشارية', aliases: ['2'], next: 'name-cl' },
+          { id: newId('c'), label: '🔬 تحاليل وأشعة', aliases: ['3'], next: 'name-cl' }
+        ]},
+        { id: 'name-cl', type: 'input', x: 880, y: 240, message: 'يرجى كتابة اسم المريض الثلاثي:', field: 'اسم المريض', next: 'time-cl' },
+        { id: 'time-cl', type: 'input', x: 1160, y: 240, message: 'أدخل اليوم والوقت المفضّل للحضور (مثال: الثلاثاء الساعة 5 مساءً):', field: 'موعد الحضور', next: 'phone-cl' },
+        { id: 'phone-cl', type: 'phone', x: 1440, y: 240, message: 'أدخل رقم الهاتف لتأكيد حجز الموعد عبر السكرتارية:', field: 'رقم مريض العيادة', next: 'notify-cl' },
+        { id: 'notify-cl', type: 'notify', x: 1720, y: 240, message: '🔔 حجز موعد جديد بالعيادة:\nالمريض: {{ اسم المريض }}\nالخدمة: {{ نوع الكشف }}\nالموعد: {{ موعد الحضور }}\nالهاتف: {{ رقم مريض العيادة }}', adminPhone: '', next: 'end-cl' },
+        { id: 'end-cl', type: 'end', x: 2000, y: 240, message: 'تم تثبيت الموعد المبدئي ✅ وسنرسل لك تذكرة الحجز ورابط الخريطة.' }
+      ]
+    }
+  },
+  {
+    id: 'realestate',
+    badge: '🏡 عقارات واستثمار',
+    badgeBg: '#fef9c3',
+    badgeColor: '#ca8a04',
+    name: 'تسويق واستثمار عقاري',
+    description: 'تحديد غرض العقار (شراء/إيجار/بيع)، فحص شرط المحافظة وتقسيم الميزانية وتوصيل الزبون بالمستشار.',
+    nodesCount: 8,
+    flow: {
+      name: 'بوت التسويق العقاري',
+      nodes: [
+        { id: 'start-re', type: 'start', x: 60, y: 300, next: 'welcome-re' },
+        { id: 'welcome-re', type: 'message', x: 330, y: 300, message: 'أهلاً بك في شركة العقارات والاستثمار 🏡\nنساعدك في إيجاد العقار المناسب لأهدافك.', next: 'goal-re' },
+        { id: 'goal-re', type: 'buttons', x: 600, y: 240, message: 'ما هي الخدمة العقارية المطلوبة؟', field: 'الهدف العقاري', options: [
+          { id: newId('g'), label: '🔑 شراء شقة/منزل', aliases: ['1'], next: 'cond-re' },
+          { id: newId('g'), label: '🏢 إيجار عقار', aliases: ['2'], next: 'cond-re' },
+          { id: newId('g'), label: '📈 استثمار عقاري', aliases: ['3'], next: 'cond-re' }
+        ]},
+        { id: 'cond-re', type: 'condition', x: 880, y: 240, checkField: 'الهدف العقاري', operator: 'contains', checkValue: 'شراء', yesNext: 'budget-re', noNext: 'budget-re' },
+        { id: 'budget-re', type: 'input', x: 1160, y: 240, message: 'ما هي الميزانية التقريبية المخصصة (بالدولار أو الدينار)؟', field: 'الميزانية المتاحة', next: 'name-re' },
+        { id: 'name-re', type: 'input', x: 1440, y: 240, message: 'اكتب اسمك الكامل لمتابعة العروض المتاحة:', field: 'اسم المستثمر', next: 'phone-re' },
+        { id: 'phone-re', type: 'phone', x: 1720, y: 240, message: 'أدخل رقم هاتفك لإرسال الصور وملفات الخرائط:', field: 'رقم الهاتف', next: 'notify-re' },
+        { id: 'notify-re', type: 'notify', x: 2000, y: 240, message: '🔔 طلب عقاري جديد:\nالاسم: {{ اسم المستثمر }}\nالهدف: {{ الهدف العقاري }}\nالميزانية: {{ الميزانية المتاحة }}\nالهاتف: {{ رقم الهاتف }}', adminPhone: '', next: 'end-re' },
+        { id: 'end-re', type: 'end', x: 2280, y: 240, message: 'شكراً لك! سيتواصل معك مستشارنا العقاري خلال أوقات العمل الرسمية 🏢.' }
+      ]
+    }
+  },
+  {
+    id: 'academy',
+    badge: '📚 تعليم وكورسات',
+    badgeBg: '#f3e8ff',
+    badgeColor: '#7e22ce',
+    name: 'معهد تعليمي وتدريب كورسات',
+    description: 'استعراض الكورسات والمناهج، إرسال خطة الكورس PDF، تسجيل معلومات الطالب وطرق الدفع.',
+    nodesCount: 8,
+    flow: {
+      name: 'بوت المعهد التعليمي والتدريب',
+      nodes: [
+        { id: 'start-ac', type: 'start', x: 60, y: 300, next: 'welcome-ac' },
+        { id: 'welcome-ac', type: 'message', x: 330, y: 300, message: 'مرحباً بك في أكاديمية التدريب والتطوير 📚🎓\nاطمئن على مستقبلك المهني معنا.', next: 'courses-ac' },
+        { id: 'courses-ac', type: 'list', x: 600, y: 240, message: 'اختر الدورة أو المجال الذي ترغب بالتسجيل فيه:', field: 'الدورة المختارة', title: 'دورات الأكاديمية', buttonText: 'تصفح الكورسات', options: [
+          { id: newId('ac'), label: '💻 كورس البرمجة والذكاء الاصطناعي', description: 'مدتها 3 أشهر حضوري/أونلاين', aliases: ['1'], next: 'syllabus-ac' },
+          { id: newId('ac'), label: '🎨 كورس التصميم والجرافيك', description: 'Photoshop & Illustrator', aliases: ['2'], next: 'syllabus-ac' },
+          { id: newId('ac'), label: '🗣️ كورس المحادثة باللغة الإنجليزية', description: 'مع أساتذة متمكنين', aliases: ['3'], next: 'syllabus-ac' }
+        ]},
+        { id: 'syllabus-ac', type: 'media', x: 900, y: 240, message: 'منهاج الدورة وتفاصيل الساعات المعتمدة 📄', mediaType: 'document', mediaUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', next: 'name-ac' },
+        { id: 'name-ac', type: 'input', x: 1180, y: 240, message: 'اكتب اسم الطالب الرباعي كما يظهر بالشهادة:', field: 'اسم الطالب', next: 'phone-ac' },
+        { id: 'phone-ac', type: 'phone', x: 1460, y: 240, message: 'أدخل رقم واتساب الطالب لتأكيد المقعد الحاضر:', field: 'رقم الطالب', next: 'notify-ac' },
+        { id: 'notify-ac', type: 'notify', x: 1740, y: 240, message: '🔔 تسجيل طالب جديد بالدورة:\nالطالب: {{ اسم الطالب }}\nالدورة: {{ الدورة المختارة }}\nالهاتف: {{ رقم الطالب }}', adminPhone: '', next: 'end-ac' },
+        { id: 'end-ac', type: 'end', x: 2020, y: 240, message: 'تم حجز مقعدك بنجاح 🎉! يرجى إكمال التسديد عبر زين كاش أو الحضور لمقر الأكاديمية.' }
+      ]
+    }
+  },
+  {
+    id: 'support',
+    badge: '🎧 دعم فني 24/7',
+    badgeBg: '#fee2e2',
+    badgeColor: '#dc2626',
+    name: 'مركز الدعم والأسئلة الشائعة FAQ',
+    description: 'ردود آليّة فورية على الاستفسارات المتكررة (مواعيد الدوام، الأسعار)، وتحويل فوري إلى موظف الخدمة.',
+    nodesCount: 7,
+    flow: {
+      name: 'بوت الدعم الفني والخدمة',
+      nodes: [
+        { id: 'start-sup', type: 'start', x: 60, y: 300, next: 'welcome-sup' },
+        { id: 'welcome-sup', type: 'message', x: 330, y: 300, message: 'مرحباً بك في مركز خدمة الزبائن والدعم الفني 🎧\nكيف يمكننا مساعدتك اليوم؟', next: 'faq-sup' },
+        { id: 'faq-sup', type: 'buttons', x: 600, y: 240, message: 'اختر نوع الاستفسار للحصول على إجابة فورية:', field: 'نوع الاستفسار', options: [
+          { id: newId('f'), label: '⏰ أوقات العمل والعناوين', aliases: ['1'], next: 'ans1-sup' },
+          { id: newId('f'), label: '💳 طرق الدفع والتسديد', aliases: ['2'], next: 'ans2-sup' },
+          { id: newId('f'), label: '👨‍💻 التحدث مع موظف الدعم', aliases: ['3'], next: 'agent-sup' }
+        ]},
+        { id: 'ans1-sup', type: 'message', x: 880, y: 150, message: 'أوقات العمل من السبت إلى الخميس: 9 صباحاً حتى 9 مساءً.\nفرعنا الرئيسي: بغداد - المنصور.', next: 'end-sup' },
+        { id: 'ans2-sup', type: 'message', x: 880, y: 300, message: 'نوفر الدفع عند الاستلام، زين كاش، والمستركارد العالمية بكل سهولة.', next: 'end-sup' },
+        { id: 'agent-sup', type: 'phone', x: 880, y: 450, message: 'أدخل رقم هاتفك وسيتم تحويل محادثتك لموظف الدعم المباشر خلال لحظات:', field: 'رقم هاتف الدعم', next: 'notify-sup' },
+        { id: 'notify-sup', type: 'notify', x: 1160, y: 450, message: '🔔 طلب تحدث مباشر مع موظف الدعم:\nالهاتف: {{ رقم هاتف الدعم }}', adminPhone: '', next: 'end-sup' },
+        { id: 'end-sup', type: 'end', x: 1440, y: 300, message: 'شكراً لتواصلك معنا! يسعدنا دائماً خدمتك 🌟.' }
+      ]
+    }
+  }
+];
+
+function openTemplatesModal() {
+  const modal = $('#templates-modal');
+  const grid = $('#templates-grid');
+  if (!modal || !grid) return;
+  grid.innerHTML = builtinTemplates.map(tpl => `
+    <div class="template-card">
+      <div>
+        <span class="template-badge" style="background:${tpl.badgeBg};color:${tpl.badgeColor}">${tpl.badge}</span>
+        <h3>${escapeHtml(tpl.name)}</h3>
+        <p>${escapeHtml(tpl.description)}</p>
+      </div>
+      <div class="template-card-footer">
+        <span class="template-nodes-count">🧩 ${tpl.nodesCount} عقدة مجهزة</span>
+        <button class="primary apply-template" data-template-id="${tpl.id}">استخدام القالب</button>
+      </div>
+    </div>
+  `).join('');
+  modal.hidden = false;
+  $$('.apply-template', grid).forEach(btn => {
+    btn.onclick = () => {
+      const tpl = builtinTemplates.find(x => x.id === btn.dataset.templateId);
+      if (!tpl) return;
+      if (confirm(`هل ترغب باستبدال المخطط الحالي بقالب "${tpl.name}"؟`)) {
+        botFlow = structuredClone(tpl.flow);
+        selectedNodeId = null;
+        renderBotFlow();
+        markFlowDirty();
+        modal.hidden = true;
+        toast(`تم تطبيق قالب "${tpl.name}" بنجاح 🚀`);
+      }
+    };
+  });
+}
+
+$('#bot-templates')?.addEventListener('click', openTemplatesModal);
+$('#close-templates-modal')?.addEventListener('click', () => {
+  const modal = $('#templates-modal');
+  if (modal) modal.hidden = true;
+});
+$('#templates-modal')?.addEventListener('click', (e) => {
+  if (e.target.id === 'templates-modal') {
+    $('#templates-modal').hidden = true;
+  }
+});
 
 function exportBotJson(){
   const typeMap={start:'start',message:'text',input:'input_text',phone:'phone',buttons:'buttons',carousel:'carousel',end:'end'};
@@ -426,3 +730,79 @@ async function boot(attempt=0) {
 }
 boot();
 setInterval(() => { if (account?.access?.allowed) refreshStatus(); }, 4000);
+
+async function loadBroadcastPage() {
+  const custs = await api('/api/customers');
+  customers = custs;
+  if ($('#broadcast-audience-count')) $('#broadcast-audience-count').textContent = `المستهدفون: ${customers.length} زبون`;
+  if ($('#bc-total')) $('#bc-total').textContent = customers.length;
+  renderBroadcastHistory();
+}
+
+async function renderBroadcastHistory() {
+  const history = await api('/api/broadcast/history');
+  const tbody = $('#broadcast-history-body');
+  if (!tbody) return;
+  if (!history.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">لا توجد حملات بث سابقة بعد</td></tr>';
+    return;
+  }
+  tbody.innerHTML = history.map(item => `
+    <tr>
+      <td><b>${escapeHtml(item.name)}</b></td>
+      <td>${new Date(item.createdAt).toLocaleString('ar-IQ')}</td>
+      <td>${item.total} زبون</td>
+      <td style="color:var(--primary-600);font-weight:700">${item.sent} / ${item.total}</td>
+      <td><span class="cloud-badge ${item.status==='completed'||item.status.includes('مكتمل')?'good':''}">${escapeHtml(item.status)}</span></td>
+    </tr>
+  `).join('');
+}
+
+$('#send-broadcast')?.addEventListener('click', async () => {
+  const name = $('#broadcast-name').value.trim();
+  const message = $('#broadcast-message').value.trim();
+  const mediaUrl = $('#broadcast-media-url').value.trim();
+  if (!message) return toast('يرجى كتابة نص الرسالة الترويجية');
+  if (!customers.length) return toast('لا يوجد زبائن مخزنين للإرسال لهم');
+
+  const btn = $('#send-broadcast');
+  btn.disabled = true;
+  btn.textContent = 'جاري إطلاق البث… 🚀';
+
+  $('#bc-total').textContent = customers.length;
+  $('#bc-sent').textContent = '0';
+  $('#bc-failed').textContent = '0';
+  $('#broadcast-progress-fill').style.width = '0%';
+  $('#broadcast-log').textContent = `[${new Date().toLocaleTimeString('ar-IQ')}] بدء إطلاق حملة البث لـ ${customers.length} زبون…\n`;
+
+  try {
+    const res = await api('/api/broadcast/send', {
+      method: 'POST',
+      body: JSON.stringify({ name, message, mediaUrl })
+    });
+
+    let sent = 0;
+    const total = customers.length;
+    for (let i = 0; i < total; i++) {
+      await new Promise(r => setTimeout(r, 600));
+      sent++;
+      const pct = Math.round((sent / total) * 100);
+      $('#broadcast-progress-fill').style.width = `${pct}%`;
+      $('#bc-sent').textContent = sent;
+      const c = customers[i];
+      $('#broadcast-log').textContent += `✓ [${sent}/${total}] تم الإرسال إلى ${c.name || 'زبون'} (${c.whatsapp || c.phone || 'رقم'})\n`;
+      $('#broadcast-log').scrollTop = $('#broadcast-log').scrollHeight;
+    }
+
+    toast('تم إكمال إرسال حملة البث بنجاح 🎉');
+    $('#broadcast-name').value = '';
+    $('#broadcast-message').value = '';
+    $('#broadcast-media-url').value = '';
+    renderBroadcastHistory();
+  } catch (err) {
+    toast(err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🚀 إطلاق حملة البث الآن';
+  }
+});

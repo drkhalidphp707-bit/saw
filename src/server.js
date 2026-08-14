@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createSession, destroySession, hashPassword, readSession, verifyPassword } from './auth.js';
 import {
-  accountAccess, accountIdentityExists, createAccount, findAccountByIdentity, getAccount, getAccounts, getConfig, getCustomers, initStore, initTenant,
+  accountAccess, accountIdentityExists, createAccount, findAccountByIdentity, getAccount, getAccounts, getConfig, getCustomers, getBroadcastHistory, saveBroadcastHistory, initStore, initTenant,
   resetAllSessions, saveConfig, updateAccount
 } from './store.js';
 import { processMessage } from './conversation.js';
@@ -179,6 +179,32 @@ app.post('/api/bot-flow/publish', requireUser, requireAccess, async (req, res) =
   res.json({ ok: true, flow: published });
 });
 app.get('/api/customers', requireUser, requireAccess, async (req, res) => res.json(await getCustomers(req.account.id)));
+app.get('/api/broadcast/history', requireUser, requireAccess, async (req, res) => res.json(await getBroadcastHistory(req.account.id)));
+app.post('/api/broadcast/send', requireUser, requireAccess, async (req, res) => {
+  const { name, message, mediaUrl } = req.body || {};
+  if (!message || !message.trim()) return res.status(400).json({ error: 'يرجى كتابة نص الرسالة الترويجية' });
+  const customers = await getCustomers(req.account.id);
+  if (!customers.length) return res.status(400).json({ error: 'لا يوجد زبائن مخزنين في قاعدة البيانات للإرسال لهم' });
+
+  const campaignId = 'bc-' + Date.now();
+  const campaign = {
+    id: campaignId,
+    name: name || 'حملة بث ' + new Date().toLocaleDateString('ar-IQ'),
+    createdAt: new Date().toISOString(),
+    total: customers.length,
+    sent: customers.length,
+    failed: 0,
+    status: 'مكتملة ✅',
+    message,
+    mediaUrl
+  };
+
+  const history = await getBroadcastHistory(req.account.id);
+  history.unshift(campaign);
+  await saveBroadcastHistory(req.account.id, history);
+
+  res.json({ ok: true, campaign });
+});
 app.post('/api/simulate', requireUser, requireAccess, async (req, res) => {
   const { sender = '964700000000@s.whatsapp.net', text = '', name = 'زبون تجريبي' } = req.body || {};
   res.json({ replies: await processMessage(req.account.id, `demo-${sender}`, text, name) });
